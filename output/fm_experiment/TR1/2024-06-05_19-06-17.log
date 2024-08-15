@@ -1,0 +1,102 @@
+Loading the data
+loading cache_data ./data/bp_TR1.pkl
+examples size is 20431
+loading cache_data ./data/bp_VL0.pkl
+examples size is 1300
+loading cache_data ./data/bp_bpnew.pkl
+examples size is 5401
+train: <torch.utils.data.dataloader.DataLoader object at 0x148d5d1f9160>
+dev: <torch.utils.data.dataloader.DataLoader object at 0x148d5d1f93d0>
+test: <torch.utils.data.dataloader.DataLoader object at 0x148d5d1f9430>
+Epoch 1 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.1601 - stack_pre: 63.26% stack_recall: 38.43% stack_f1: 47.82%
+test: loss: 1.3749 - stack_pre: 60.84% stack_recall: 29.86% stack_f1: 40.06%
+Epoch 2 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.0203 - stack_pre: 65.37% stack_recall: 46.71% stack_f1: 54.49%
+test: loss: 1.2241 - stack_pre: 63.66% stack_recall: 42.27% stack_f1: 50.81%
+Epoch 3 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 0.9722 - stack_pre: 68.22% stack_recall: 47.83% stack_f1: 56.23%
+test: loss: 1.1654 - stack_pre: 65.59% stack_recall: 44.04% stack_f1: 52.70%
+Epoch 4 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 0.9295 - stack_pre: 67.52% stack_recall: 51.31% stack_f1: 58.31%
+test: loss: 1.1392 - stack_pre: 64.16% stack_recall: 48.72% stack_f1: 55.39%
+Epoch 5 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 0.9030 - stack_pre: 67.85% stack_recall: 52.28% stack_f1: 59.06%
+test: loss: 1.1473 - stack_pre: 63.79% stack_recall: 50.38% stack_f1: 56.30%
+Epoch 6 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 0.9154 - stack_pre: 68.14% stack_recall: 53.56% stack_f1: 59.98%
+test: loss: 1.1487 - stack_pre: 61.90% stack_recall: 52.11% stack_f1: 56.58%
+Epoch 7 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 0.9205 - stack_pre: 66.42% stack_recall: 56.75% stack_f1: 61.20%
+test: loss: 1.2326 - stack_pre: 57.26% stack_recall: 53.82% stack_f1: 55.49%
+Epoch 8 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 0.9379 - stack_pre: 67.51% stack_recall: 54.54% stack_f1: 60.34%
+test: loss: 1.2556 - stack_pre: 57.60% stack_recall: 53.81% stack_f1: 55.64%
+0:08:04.764622s elapsed
+
+Epoch 9 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.0077 - stack_pre: 67.10% stack_recall: 56.12% stack_f1: 61.12%
+test: loss: 1.3516 - stack_pre: 56.66% stack_recall: 54.81% stack_f1: 55.72%
+0:08:08.163831s elapsed
+
+Epoch 10 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.0684 - stack_pre: 65.81% stack_recall: 57.13% stack_f1: 61.16%
+test: loss: 1.4732 - stack_pre: 54.25% stack_recall: 56.17% stack_f1: 55.19%
+0:08:04.181964s elapsed
+
+Epoch 11 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.1603 - stack_pre: 65.58% stack_recall: 55.78% stack_f1: 60.29%
+test: loss: 1.6261 - stack_pre: 53.65% stack_recall: 54.30% stack_f1: 53.98%
+0:08:06.198117s elapsed
+
+Epoch 12 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.2756 - stack_pre: 65.75% stack_recall: 55.99% stack_f1: 60.48%
+test: loss: 1.7115 - stack_pre: 54.43% stack_recall: 54.63% stack_f1: 54.53%
+0:08:06.027742s elapsed
+
+Epoch 13 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.2357 - stack_pre: 63.93% stack_recall: 57.14% stack_f1: 60.34%
+test: loss: 1.8227 - stack_pre: 51.72% stack_recall: 55.68% stack_f1: 53.63%
+0:08:06.352470s elapsed
+
+Epoch 14 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.3810 - stack_pre: 63.91% stack_recall: 55.97% stack_f1: 59.68%
+test: loss: 1.9599 - stack_pre: 52.50% stack_recall: 55.56% stack_f1: 53.99%
+0:07:58.637225s elapsed
+
+Epoch 15 / 100.0:
+***** Running train *****
+***** Running Evaluation *****
+dev: loss: 1.5345 - stack_pre: 64.46% stack_recall: 55.61% stack_f1: 59.71%
+test: loss: 2.1593 - stack_pre: 52.67% stack_recall: 54.86% stack_f1: 53.75%
+0:07:56.447043s elapsed
+
+Early stop in 14 epoch!

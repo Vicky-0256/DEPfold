@@ -1,0 +1,9 @@
+*.pt
+*.log
+*.out
+*.stats
+**/TS0/
+**/bpnew/
+pretrained/
+pretrained/RNA-FM_pretrained.pth
+
