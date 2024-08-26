@@ -23,6 +23,7 @@ from modules.tree import DependencyCRF, MatrixTree
 from modules.pretrained import TransformerEmbedding
 from modules.focalloss import FocalLoss
 from modules.pretrained import RNAfmEmbedding
+from utils.postprocess import row_col_argmax
 
 # class BiaffineModel(nn.Module):
 
@@ -292,61 +293,86 @@ class BiaffineModel(nn.Module):
         return energies
 
 
+    # def decode(self, s_arc, s_rel, seed, beta,mask, tree, proj):
+        
+    #     r"""
+    #     Args:
+    #         s_arc (~torch.Tensor): ``[batch_size, seq_len, seq_len]``.
+    #             Scores of all possible arcs.
+    #         s_rel (~torch.Tensor): ``[batch_size, seq_len, seq_len, n_labels]``.
+    #             Scores of all possible labels on each arc.
+    #         mask (~torch.BoolTensor): ``[batch_size, seq_len]``.
+    #             The mask for covering the unpadded tokens.
+    #         tree (bool):
+    #             If ``True``, ensures to output well-formed trees. Default: ``False``.
+    #         proj (bool):
+    #             If ``True``, ensures to output projective trees. Default: ``False``.
+
+    #     Returns:
+    #         ~torch.LongTensor, ~torch.LongTensor:
+    #             Predicted arcs and labels of shape ``[batch_size, seq_len]``.
+    #     """
+
+    #     mask = mask.bool()   
+    #     lens = mask.sum(1)
+
+    #     s_arc_probs = F.softmax(s_arc, dim=-1)
+    #     s_rel_probs = F.softmax(s_rel[:, :, :, 3], dim=-1)
+
+    #     if beta != 0:
+    #         s_arc = s_arc_probs + beta * s_rel_probs
+
+    #     if seed == -1:
+    #         arc_preds = s_arc.argmax(-1)
+    #     else:
+    #         torch.manual_seed(seed)
+
+    #         # Initialize an empty list to store arc_preds for each batch
+    #         batch_arc_preds = []
+
+    #         # Loop through each batch
+    #         for batch in s_arc_probs:
+    #             # Apply multinomial sampling for the current batch
+    #             # Since batch is 2D now ([133, 133]), this is valid
+    #             arc_pred = torch.multinomial(batch, num_samples=1).squeeze()  # num_samples=1 for one sample per row
+    #             batch_arc_preds.append(arc_pred)
+
+    #         # Convert list of tensors back into a single tensor
+    #         arc_preds = torch.stack(batch_arc_preds)
+
+    #     bad = [not istree(seq[1:i+1], proj) for i, seq in zip(lens.tolist(), arc_preds.tolist())]
+    #     if tree and any(bad):
+    #         arc_preds[bad] = (DependencyCRF if proj else MatrixTree)(s_arc[bad], mask[bad].sum(-1)).argmax
+        
+    #     rel_preds = s_rel.argmax(-1).gather(-1, arc_preds.unsqueeze(-1)).squeeze(-1)
+
+    #     return arc_preds, rel_preds
+
     def decode(self, s_arc, s_rel, seed, beta,mask, tree, proj):
+        # setattr(args, 'relation_dic', {'loop': 1, 'root': 2, 'stem': 3, 'stemnect': 4, 'pseudo': 5})
+        #需要检查一下label的向量维度是不是6
+
+        label_map = self.args.relation_dic
+        stem_index = label_map['stem']
+        pseudo_index = label_map['pseudo']
+
+        num_labels = s_rel.size(-1)  # 获取 s_rel 张量最后一个维度的大小
+        expected_num_labels = len(label_map)  # 获取标签字典中的标签数量
+        assert num_labels == expected_num_labels, f"Label dimension mismatch. Expected {expected_num_labels}, got {num_labels}"
         
-        r"""
-        Args:
-            s_arc (~torch.Tensor): ``[batch_size, seq_len, seq_len]``.
-                Scores of all possible arcs.
-            s_rel (~torch.Tensor): ``[batch_size, seq_len, seq_len, n_labels]``.
-                Scores of all possible labels on each arc.
-            mask (~torch.BoolTensor): ``[batch_size, seq_len]``.
-                The mask for covering the unpadded tokens.
-            tree (bool):
-                If ``True``, ensures to output well-formed trees. Default: ``False``.
-            proj (bool):
-                If ``True``, ensures to output projective trees. Default: ``False``.
-
-        Returns:
-            ~torch.LongTensor, ~torch.LongTensor:
-                Predicted arcs and labels of shape ``[batch_size, seq_len]``.
-        """
-
-        mask = mask.bool()   
-        lens = mask.sum(1)
-
-        s_arc_probs = F.softmax(s_arc, dim=-1)
-        s_rel_probs = F.softmax(s_rel[:, :, :, 3], dim=-1)
-
-        if beta != 0:
-            s_arc = s_arc_probs + beta * s_rel_probs
-
-        if seed == -1:
-            arc_preds = s_arc.argmax(-1)
-        else:
-            torch.manual_seed(seed)
-
-            # Initialize an empty list to store arc_preds for each batch
-            batch_arc_preds = []
-
-            # Loop through each batch
-            for batch in s_arc_probs:
-                # Apply multinomial sampling for the current batch
-                # Since batch is 2D now ([133, 133]), this is valid
-                arc_pred = torch.multinomial(batch, num_samples=1).squeeze()  # num_samples=1 for one sample per row
-                batch_arc_preds.append(arc_pred)
-
-            # Convert list of tensors back into a single tensor
-            arc_preds = torch.stack(batch_arc_preds)
-
-        bad = [not istree(seq[1:i+1], proj) for i, seq in zip(lens.tolist(), arc_preds.tolist())]
-        if tree and any(bad):
-            arc_preds[bad] = (DependencyCRF if proj else MatrixTree)(s_arc[bad], mask[bad].sum(-1)).argmax
+        _, max_label_indices = torch.max(s_rel, dim=-1)
         
-        rel_preds = s_rel.argmax(-1).gather(-1, arc_preds.unsqueeze(-1)).squeeze(-1)
+        combined_mask = ((max_label_indices == stem_index) | (max_label_indices == pseudo_index))
+    
 
-        return arc_preds, rel_preds
+        result = s_arc * combined_mask.float()
+        
+        # 应用原始的mask
+        result = result * mask.unsqueeze(1).float()
 
+        pred_contacts = row_col_argmax(result)
+
+        return pred_contacts
 
 
 

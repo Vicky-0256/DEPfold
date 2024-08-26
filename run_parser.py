@@ -7,6 +7,7 @@ import tempfile
 from typing import Iterable, Union
 from datetime import datetime
 
+import logging
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -14,11 +15,12 @@ from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.cuda.amp import GradScaler
 from utils.utils import LinearLR, seed_everything, ProgressBar, init_logger, logger, write_prediction_results
-from utils.metric import AttachmentMetric, Metric
+from utils.metric import AttachmentMetric, Metric, evaluate_result
 from modules.tokenizer import TransformerTokenizer
 from modules.pretrained import TransformerEmbedding
 from DataProcessing.dataset_dep import Biaffine_Dataset, read_examples
 from models.biaffine_supar import BiaffineModel
+import numpy as np
 
 from config import Config
 import RNA
@@ -64,7 +66,8 @@ class RNAbiaffine():
         self.scheduler = self.init_scheduler()
         self.scaler = GradScaler(enabled=amp)
 
-        self.best_metric = Metric(self.args)
+        # self.best_metric = Metric(self.args)
+        self.best_f1 = 0
 
         for epoch in range(int(self.args.num_train_epochs)):
             start = datetime.now()
@@ -106,52 +109,253 @@ class RNAbiaffine():
             logger.info("***** Running Evaluation *****")
             self.model.eval()
 
-            metric = Metric(self.args)
-            test_metric = Metric(self.args)
+            # metric = Metric(self.args)
+            # test_metric = Metric(self.args)
             beta = self.args.beta
 
+            eval_results, run_time =[],[]
+            test_results, test_time =[],[]
             for batch in eval_iter:
                 batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
-                metric += self.eval_step(batch, beta)
+                # metric += self.eval_step(batch, beta)
+                interval_t, eval_result = self.eval_step(batch, beta)
+                run_time.append(interval_t)
+                eval_results += eval_result
+            p, r, eval_f1 = zip(*eval_results)
+
+            print('Eval F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(eval_f1), np.average(p), np.average(r), np.average(run_time)))
 
             for batch in test_iter:
                 batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
-                test_metric += self.eval_step(batch, beta)
+                # test_metric += self.eval_step(batch, beta)
+                interval_t, eval_result = self.eval_step(batch, beta)
+                test_time.append(interval_t)
+                test_results += eval_result
 
-            logger.info(f"dev: {metric}")
-            logger.info(f"test: {test_metric}")
+            p, r, f1 = zip(*test_results)
+            print('Test F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(test_time)))
+
+            # logger.info(f"dev: {metric}")
+            # logger.info(f"test: {test_metric}")
             t = datetime.now() - start
-            if metric >= self.best_metric:
+            # if metric >= self.best_metric:
+            if np.average(eval_f1) >= self.best_f1:
                 early_stop = 0
                 best_model = copy.deepcopy(self.model.module if hasattr(self.model, "module") else self.model)
                 torch.save(best_model.state_dict(), os.path.join(self.args.output_dir, "model.pt"))
-                print('metric >= self.best_metric')
-                print('metric', metric.values)
-                self.best_e, self.best_metric = epoch, metric
+                print('eval_f1 >= self.best_f1')
+                # print('metric', metric.values)
+                # self.best_e, self.best_metric = epoch, metric
+                self.best_e, self.best_f1 = epoch, np.average(eval_f1)
             else:
                 early_stop += 1
-                logger.info(f"{t}s elapsed\n")
+                # logger.info(f"{t}s elapsed\n")
                 if early_stop == self.args.early_stop:
-                    logger.info(f"Early stop in {epoch} epoch!")
+                    # logger.info(f"Early stop in {epoch} epoch!")
+                    print(f"Early stop in {epoch} epoch!")
                     break
+
+    # def predict(self):
+    #     args = self.args
+    #     path = self.args.path
+    #     self.model.load_state_dict(torch.load(path, map_location='cpu'))
+    #     self.model.to(self.args.device)
+
+    #     logger.info("Loading the data")
+    #     dataset = Biaffine_Dataset(self.args, examples=read_examples(self.args, file_path=self.args.predict, session=self.args.predict_session), data_type="test")
+    #     pred_iter = DataLoader(dataset, shuffle=False, batch_size=self.args.per_gpu_eval_batch_size, collate_fn=dataset._create_collate_fn(), num_workers=4)
+
+    #     relation_dic = self.args.relation_dic
+
+    #     logger.info("Making predictions on the data")
+    #     start = datetime.now()
+    #     self.model.eval()
+    #     seq_all, gold, predict = [], [], []
+
+    #     for batch in pred_iter:
+    #         batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
+
+    #         seq, batch_token_ids, mask, arcs, rels = batch
+    #         mask[:, 0] = 0
+    #         s_arc, s_rel = self.model(batch_token_ids=batch_token_ids)
+
+    #         s_time = time.time()
+    #         beta = args.beta
+    #         seed = -1
+    #         pred_contacts = self.model.decode(s_arc, s_rel, seed, beta, mask, self.args.tree, self.args.proj).cpu()
+    #         interval_t = time.time() - s_time
+
+    #         contacts = self.create_contacts_from_arcs_and_rels(arcs, rels)
+            
+    #         pred_result = list(map(lambda i: evaluate_result(pred_contacts()[i],
+    #                                                                     contacts()[i]), range(contacts.shape[0])))
+    #         gold_structure = self.contacts_to_dot_bracket(contacts)
+    #         pred_structure = self.contacts_to_dot_bracket(pred_contacts)
+
+    #         seq_all.extend(seq)
+    #         gold.extend(gold_structure)
+    #         predict.extend(pred_structure)
+
+
+
+    #     p, r, f1 = zip(*pred_result)
+    #     print('predict file F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(interval_t)))
+        
+    #     predict_path = self.args.predict_save
+    #     with open(predict_path + '/seq.txt', 'w') as file:
+    #         for s in seq:
+    #             file.write(s + '\n')
+    #     with open(predict_path + '/predict.txt', 'w') as file:
+    #         for structure in predict:
+    #             file.write(structure + '\n')
+    #     with open(predict_path + '/gold.txt', 'w') as file:
+    #         for structure in gold:
+    #             file.write(structure + '\n')
 
     def predict(self):
         args = self.args
         path = self.args.path
-        self.model.load_state_dict(torch.load(path, map_location='cpu'))
+        # self.model.load_state_dict(torch.load(path, map_location='cpu'))
+        state_dict = torch.load(path, map_location='cpu')
+        self.model.load_state_dict(state_dict, strict=False)
         self.model.to(self.args.device)
 
         logger.info("Loading the data")
-        dataset = Biaffine_Dataset(self.args, examples=read_examples(self.args, file_path=self.args.predict, session=self.args.predict_session), data_type="test")
-        pred_iter = DataLoader(dataset, shuffle=False, batch_size=self.args.per_gpu_eval_batch_size, collate_fn=dataset._create_collate_fn(), num_workers=4)
-
-        relation_dic = self.args.relation_dic
+        dataset = Biaffine_Dataset(args, examples=read_examples(args, file_path=args.predict, session=args.predict_session), data_type="test")
+        pred_iter = DataLoader(dataset, shuffle=False, batch_size=args.per_gpu_eval_batch_size, collate_fn=dataset._create_collate_fn(), num_workers=4)
 
         logger.info("Making predictions on the data")
         start = datetime.now()
         self.model.eval()
-        seq, arcs, rels, arc_preds, rel_preds, gold, predict = [], [], [], [], [], [], []
+        seq_all, gold, predict = [], [], []
+        pred_result = []
 
+        for batch in pred_iter:
+            batch = (batch[0],) + tuple(t.to(args.device) for t in batch[1:])
+
+            seq, batch_token_ids, mask, arcs, rels = batch
+            mask[:, 0] = 0
+            
+            with torch.no_grad():
+                s_arc, s_rel = self.model(batch_token_ids=batch_token_ids)
+
+                s_time = time.time()
+                beta = args.beta
+                seed = -1
+                pred_contacts = self.model.decode(s_arc, s_rel, seed, beta, mask, args.tree, args.proj)
+                interval_t = time.time() - s_time
+                # torch.set_printoptions(edgeitems=pred_contacts.size(-1), 
+                #        linewidth=1000)
+                # print(pred_contacts)
+
+                contacts = self.create_contacts_from_arcs_and_rels(arcs, rels)
+                # print(arcs)
+                # print(rels)
+                # print(contacts)
+
+
+                # Move tensors to CPU for evaluation
+                pred_contacts_cpu = pred_contacts.cpu()
+                contacts_cpu = contacts.cpu()
+
+                for i in range(contacts.shape[0]):
+                    try:
+                        result = evaluate_result(pred_contacts_cpu[i], contacts_cpu[i])
+                        pred_result.append(result)
+                    except Exception as e:
+                        logger.error(f"Error in evaluate_result for item {i}: {e}")
+                        continue
+
+                gold_structure = self.contacts_to_dot_bracket(contacts_cpu)
+                pred_structure = self.contacts_to_dot_bracket(pred_contacts_cpu)
+
+                seq_all.extend(seq)
+                gold.extend(gold_structure)
+                predict.extend(pred_structure)
+
+        p, r, f1 = zip(*pred_result)
+        logger.info('Predict file F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(
+            np.mean(f1), np.mean(p), np.mean(r), np.mean(interval_t)))
+        
+        predict_path = args.predict_save
+        with open(os.path.join(predict_path, 'seq.txt'), 'w') as file:
+            file.write('\n'.join(seq_all))
+        with open(os.path.join(predict_path, 'predict.txt'), 'w') as file:
+            file.write('\n'.join(predict))
+        with open(os.path.join(predict_path, 'gold.txt'), 'w') as file:
+            file.write('\n'.join(gold))
+
+        logger.info(f"Prediction completed. Time taken: {datetime.now() - start}")
+
+
+    # def contacts_to_dot_bracket(self, contacts):
+    #     """
+    #     将接触矩阵转换为点括号表示法的 RNA 二级结构。
+        
+    #     参数:
+    #     contacts (torch.Tensor): 形状为 [batch_size, seq_len, seq_len] 的接触矩阵
+
+    #     返回:
+    #     list of str: 每个元素是一个序列的点括号表示
+    #     """
+    #     batch_size, seq_len, _ = contacts.shape
+    #     dot_bracket_list = []
+
+    #     for batch in range(batch_size):
+    #         structure = ['.' for _ in range(seq_len)]
+    #         stack = []
+
+    #         for i in range(seq_len):
+    #             if torch.any(contacts[batch, i, i+1:]):
+    #                 j = torch.where(contacts[batch, i, i+1:])[0][0].item() + i + 1
+    #                 structure[i] = '('
+    #                 structure[j] = ')'
+    #                 stack.append(j)
+    #             elif stack and i == stack[-1]:
+    #                 stack.pop()
+    #             else:
+    #                 structure[i] = '.'
+
+    #         dot_bracket_list.append(''.join(structure))
+
+    #     return dot_bracket_list
+
+    def contacts_to_dot_bracket(self, contacts):
+        """
+        将接触矩阵转换为点括号表示法的 RNA 二级结构，改进版本。
+        
+        参数:
+        contacts (torch.Tensor): 形状为 [batch_size, seq_len, seq_len] 的接触矩阵
+
+        返回:
+        list of str: 每个元素是一个序列的点括号表示
+        """
+        batch_size, seq_len, _ = contacts.shape
+        dot_bracket_list = []
+
+        for batch in range(batch_size):
+            structure = ['.' for _ in range(seq_len)]
+            stack = []
+
+            for i in range(seq_len):
+                if i in stack:
+                    continue
+                
+                if torch.any(contacts[batch, i, i+1:]):
+                    j = torch.where(contacts[batch, i, i+1:])[0][0].item() + i + 1
+                    
+                    # 检查 j 是否已经被配对
+                    if j not in stack:
+                        structure[i] = '('
+                        structure[j] = ')'
+                        stack.append(j)
+                
+            dot_bracket_list.append(''.join(structure))
+
+        return dot_bracket_list
+
+
+        '''
         for step, batch in enumerate(pred_iter):
 
             batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
@@ -290,6 +494,7 @@ class RNAbiaffine():
             if balance < 0:
                 return False
         return balance == 0
+    '''
 
     def train_step(self, batch):
         seq, batch_token_ids, mask, arcs, rels = batch
@@ -297,6 +502,35 @@ class RNAbiaffine():
         s_arc, s_rel = self.model(batch_token_ids=batch_token_ids)
         arc_loss, rel_loss, loss = self.model.loss(s_arc, s_rel, arcs, rels, mask)
         return arc_loss, rel_loss, loss
+    
+    def create_contacts_from_arcs_and_rels(self, arcs, rels):
+
+        batch_size, seq_len = arcs.shape
+        device = arcs.device 
+
+        stem_index = self.args.relation_dic['stem']
+        pseudo_index = self.args.relation_dic['pseudo']
+        
+        # 创建一个全零的contacts矩阵
+        contacts = torch.zeros((batch_size, seq_len, seq_len), device=device)
+        
+        # 使用高效的张量操作来填充contacts矩阵
+        batch_indices = torch.arange(batch_size, device=device).unsqueeze(1).expand(-1, seq_len)
+        seq_indices = torch.arange(seq_len,device=device).unsqueeze(0).expand(batch_size, -1)
+        
+
+        stem_mask = (rels == stem_index)
+        pseudo_mask = (rels == pseudo_index)
+        combined_mask = stem_mask | pseudo_mask
+
+        
+        # 设置contacts矩阵中对应的位置为1
+        valid_indices = combined_mask & (batch_indices < batch_size)
+        
+        contacts[batch_indices[valid_indices], seq_indices[valid_indices], arcs[valid_indices]] = 1
+        # contacts = contacts + contacts.transpose(1, 2)
+        
+        return contacts
 
     def eval_step(self, batch, beta):
         seq, batch_token_ids, mask, arcs, rels = batch
@@ -304,9 +538,21 @@ class RNAbiaffine():
         s_arc, s_rel = self.model(batch_token_ids=batch_token_ids)
         arc_loss, rel_loss, loss = self.model.loss(s_arc, s_rel, arcs, rels, mask)
         seed = -1
-        arc_preds, rel_preds = self.model.decode(s_arc, s_rel, seed, beta, mask, self.args.tree, self.args.proj)
+        # arc_preds, rel_preds = self.model.decode(s_arc, s_rel, seed, beta, mask, self.args.tree, self.args.proj)
+        # return AttachmentMetric(self.args, arc_loss, rel_loss, loss, (arc_preds, rel_preds), (arcs, rels), mask)
+        s_time = time.time()
 
-        return AttachmentMetric(self.args, arc_loss, rel_loss, loss, (arc_preds, rel_preds), (arcs, rels), mask)
+        pred_contacts = self.model.decode(s_arc, s_rel, seed, beta, mask, self.args.tree, self.args.proj)
+        interval_t = time.time() - s_time
+
+        contacts = self.create_contacts_from_arcs_and_rels(arcs, rels)
+        
+        eval_result = list(map(lambda i: evaluate_result(pred_contacts()[i],
+                                                                     contacts()[i]), range(contacts.shape[0])))
+
+
+        return interval_t, eval_result
+        
 
     def clip_grad_norm_(self, params: Union[Iterable[torch.Tensor], torch.Tensor], max_norm: float, norm_type: float = 2) -> torch.Tensor:
         self.scaler.unscale_(self.optimizer)
@@ -332,7 +578,7 @@ def get_argparse():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--seed", type=int, default=66, help="random seed for initialization")
-    parser.add_argument("--embedding", type=str, default='RNA-fm', help="one-hot, RNA-fm,roberta-base")
+    parser.add_argument("--embedding", type=str, default='roberta-base', help="one-hot, RNA-fm,roberta-base")
     parser.add_argument("--finetune", action='store_true', help="finetune embedding")
 
     parser.add_argument("--train_session", default="TR0", type=str, help="TR0, TR1")
@@ -356,16 +602,16 @@ def get_argparse():
 
     parser.add_argument("--output_dir", default="./output", type=str, help="保存模型的路径")
 
-    parser.add_argument("--mode", default='train', type=str, help="train or predict")
+    parser.add_argument("--mode", default='predict', type=str, help="train or predict")
     parser.add_argument("--loss", default='cross_entropy', type=str, help="cross_entropy or focal_loss")
 
     # when predict
     parser.add_argument("--predict", default="/home/ke/Documents/RNA_translation/RNA_mhs_biaffine/data/mhs", type=str, help="predict data file path")
-    parser.add_argument("--predict_session", default="bugexample", type=str, help="predict session")
+    parser.add_argument("--predict_session", default="bpnew", type=str, help="predict session")
     parser.add_argument("--decode_round", default=1, type=int, help="how many times to make the prediction")
     parser.add_argument("--beta", default=0.0, type=float, help="beta stem map to added to arc")
     parser.add_argument("--predict_save", default="./test/test/", type=str, help="result save")
-    parser.add_argument("--path", default="./test/test/model.pkl", type=str, help="model path")
+    parser.add_argument("--path", default="/home/ke/Documents/RNA_parser/RNA_parser/output/model.pt", type=str, help="model path")
 
     return parser
 
