@@ -20,20 +20,50 @@ def process_upper_triangle(y):
     
     return y_symmetric
 
+def constraint_matrix(y):
+    # 获取批次大小和序列长度
+    batch_size, seq_length, _ = y.shape
+    
+    # 创建一个全 1 的矩阵
+    matrix = torch.ones_like(y)
+    
+    # 创建一个掩码来标识不能形成依存关系的位置
+    mask = torch.ones(seq_length, seq_length, device=y.device)
+    for i in range(seq_length):
+        st, en = max(i-3, 0), min(i+3, seq_length-1)
+        mask[i, st:en+1] = 0
+    
+    # 将掩码应用到每个批次
+    matrix = matrix * mask.unsqueeze(0)
+    
+    return matrix
+
+
 def row_col_softmax(y):
 
     # 首先处理矩阵，只保留右上三角（不包括对角线）并使其对称
     # y_processed = process_upper_triangle(y)
     y_processed = y
+
     
     row_softmax = torch.softmax(y_processed, dim=-1)
     col_softmax = torch.softmax(y_processed, dim=-2)
     return 0.5 * (row_softmax + col_softmax)
 
 def row_col_argmax(y):
-    y_pred = row_col_softmax(y)
-    y_pred = process_upper_triangle(y_pred)
 
+    # y_pred = row_col_softmax(y)
+    # y_pred = process_upper_triangle(y)
+    # y_pred = row_col_softmax(y_pred)
+    y_pred=y
+    # torch.set_printoptions(edgeitems=y_pred.size(-1), 
+    #         linewidth=1000)
+    # print(y_pred)
+    y_pred = y_pred * constraint_matrix(y_pred)
+
+    # torch.set_printoptions(edgeitems=y_pred.size(-1), sci_mode=False, precision=1,
+    #         linewidth=1000)
+    # print(y_pred)
 
     y_hat = y_pred + torch.randn_like(y) * 1e-12
     col_max = torch.argmax(y_hat, 1)

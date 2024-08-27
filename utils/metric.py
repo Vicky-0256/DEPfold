@@ -205,14 +205,32 @@ class AttachmentMetric(Metric):
                 'stack_f1': self.stack_f1
         }
 
+# def evaluate_result(pred_a, true_a, eps=1e-11):
+#     tp_map = torch.sign(torch.Tensor(pred_a) * torch.Tensor(true_a))
+#     tp = tp_map.sum()
+#     pred_p = torch.sign(torch.Tensor(pred_a)).sum()
+#     true_p = true_a.sum()
+#     fp = pred_p - tp
+#     fn = true_p - tp
+#     recall = (tp + eps)/(tp+fn+eps)
+#     precision = (tp + eps)/(tp+fp+eps)
+#     f1_score = (2*tp + eps)/(2*tp + fp + fn + eps)
+#     return precision, recall, f1_score
+
 def evaluate_result(pred_a, true_a, eps=1e-11):
-    tp_map = torch.sign(torch.Tensor(pred_a) * torch.Tensor(true_a))
-    tp = tp_map.sum()
-    pred_p = torch.sign(torch.Tensor(pred_a)).sum()
-    true_p = true_a.sum()
+    pred_tensor = torch.Tensor(pred_a)
+    true_tensor = torch.Tensor(true_a)
+    
+    # 只考虑正值为正例
+    tp = torch.sum((pred_tensor > 0) & (true_tensor > 0)).item()
+    pred_p = torch.sum(pred_tensor > 0).item()
+    true_p = torch.sum(true_tensor > 0).item()
+    
     fp = pred_p - tp
     fn = true_p - tp
-    recall = (tp + eps)/(tp+fn+eps)
-    precision = (tp + eps)/(tp+fp+eps)
-    f1_score = (2*tp + eps)/(2*tp + fp + fn + eps)
+    
+    recall = (tp + eps) / (true_p + eps)
+    precision = (tp + eps) / (pred_p + eps)
+    f1_score = (2 * tp + eps) / (pred_p + true_p + eps)
+    
     return precision, recall, f1_score

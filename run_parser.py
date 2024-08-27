@@ -124,7 +124,9 @@ class RNAbiaffine():
             p, r, eval_f1 = zip(*eval_results)
 
             print('Eval F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(eval_f1), np.average(p), np.average(r), np.average(run_time)))
-
+            logging.info('Eval F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}'.format(
+                np.average(eval_f1), np.average(p), np.average(r), np.average(run_time))
+            )
             for batch in test_iter:
                 batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
                 # test_metric += self.eval_step(batch, beta)
@@ -134,7 +136,7 @@ class RNAbiaffine():
 
             p, r, f1 = zip(*test_results)
             print('Test F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(test_time)))
-
+            logging.info('Test F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(test_time)))
             # logger.info(f"dev: {metric}")
             # logger.info(f"test: {test_metric}")
             t = datetime.now() - start
@@ -345,10 +347,15 @@ class RNAbiaffine():
                     j = torch.where(contacts[batch, i, i+1:])[0][0].item() + i + 1
                     
                     # 检查 j 是否已经被配对
+                    if j in stack:
+                        print('j 已经被配对')
+
                     if j not in stack:
                         structure[i] = '('
                         structure[j] = ')'
                         stack.append(j)
+
+
                 
             dot_bracket_list.append(''.join(structure))
 
@@ -547,8 +554,13 @@ class RNAbiaffine():
 
         contacts = self.create_contacts_from_arcs_and_rels(arcs, rels)
         
-        eval_result = list(map(lambda i: evaluate_result(pred_contacts()[i],
-                                                                     contacts()[i]), range(contacts.shape[0])))
+        # eval_result = list(map(lambda i: evaluate_result(pred_contacts()[i],
+        #                                                              contacts()[i]), range(contacts.shape[0])))
+
+        eval_result = list(map(lambda i: evaluate_result(pred_contacts[i],
+                                                        contacts[i]), range(contacts.shape[0])))
+
+
 
 
         return interval_t, eval_result
@@ -602,12 +614,12 @@ def get_argparse():
 
     parser.add_argument("--output_dir", default="./output", type=str, help="保存模型的路径")
 
-    parser.add_argument("--mode", default='predict', type=str, help="train or predict")
+    parser.add_argument("--mode", default='train', type=str, help="train or predict")
     parser.add_argument("--loss", default='cross_entropy', type=str, help="cross_entropy or focal_loss")
 
     # when predict
-    parser.add_argument("--predict", default="/home/ke/Documents/RNA_translation/RNA_mhs_biaffine/data/mhs", type=str, help="predict data file path")
-    parser.add_argument("--predict_session", default="bpnew", type=str, help="predict session")
+    parser.add_argument("--predict", default="/home/ke/Documents/RNA_translation/RNA_mhs_biaffine/data/bp_", type=str, help="predict data file path")
+    parser.add_argument("--predict_session", default="TS0", type=str, help="predict session")
     parser.add_argument("--decode_round", default=1, type=int, help="how many times to make the prediction")
     parser.add_argument("--beta", default=0.0, type=float, help="beta stem map to added to arc")
     parser.add_argument("--predict_save", default="./test/test/", type=str, help="result save")
