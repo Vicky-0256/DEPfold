@@ -16,10 +16,32 @@ def is_connect(a,b):
             return 2,1
 
 
-def get_tree(structure):
+def get_tree(structure,pseudo_pairs):
     dot_indices = [index for index, value in enumerate(structure) if value == '.']
     brac_indices = [index for index, value in enumerate(structure) if value in ('(', ')')]
     # print(brac_indices)
+    # pseduo_pairs是个二维的
+    pse_pair = []
+    max_pse =0
+    if len(pseudo_pairs) != 0:
+
+        for pair in pseudo_pairs:
+            dot = ['.'] * len(structure)
+            for l, r in pair:
+                # 将dot_indices中的l ,r删掉
+                dot_indices = [index for index in dot_indices if index != l-1 and index != r-1]
+
+                dot[l - 1] = '('
+                dot[r - 1] = ')'
+            dot = "".join(dot)
+            pse_indices = [index for index, value in enumerate(dot) if value in ('(', ')')]
+            have_pair = get_pair([dot[i] for i in pse_indices], pse_indices)
+            # print(have_pair)
+            pse_pair.extend(have_pair)
+            # print(pse_pair)
+            if pse_indices[-1]>> max_pse:
+                max_pse = pse_indices[-1]
+
 
     if len(brac_indices) == 0:
         parse_pair = []
@@ -28,7 +50,7 @@ def get_tree(structure):
 
     result_list = []
     temp_list = []
-
+    
     for i, dot_index in enumerate(dot_indices):
         if i == 0 or dot_index == dot_indices[i-1] + 1:
             temp_list.append(dot_index)
@@ -43,11 +65,11 @@ def get_tree(structure):
     if len(brac_indices) == 0:
         last_node = 0
     else:
-        last_node = brac_indices[-1]
+        last_node = max(brac_indices[-1], max_pse)
 
     pair_list = get_pairs(result_list, last_node)
 
-    return pair_list, parse_pair
+    return pair_list, parse_pair, pse_pair
 
 def get_pair(seq,idx):
 

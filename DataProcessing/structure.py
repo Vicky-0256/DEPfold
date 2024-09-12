@@ -59,6 +59,84 @@ def load_ct(ctFn, load_all=False):
     
     return Ct
 
+# def load_ct(ctFn, load_all=False):
+#     """
+#     Read ct file
+    
+#     ctFn                -- ct file name
+#     load_all            -- load all ct from ct file, or load the first one
+    
+#     Return:
+#         [seq,dotList,length] if load_all==False
+#         {1:[seq,dotList,length], ...} if load_all==True
+#     """
+#     Ct = {}
+    
+#     ID = 1
+#     ctList = []
+#     seq = ""
+#     last_id = 0
+    
+#     seqLen = 0
+#     headline = ""
+    
+#     try:
+#         with open(ctFn, 'r') as f:
+#             for line_num, line in enumerate(f, 1):
+#                 line = line.strip()
+#                 if line.startswith('#'):
+#                     continue
+#                 data = line.split()
+#                 if not data:  # Skip empty lines
+#                     continue
+#                 if not data[0].isdigit():
+#                     if seqLen == 0:  # This might be the header line
+#                         try:
+#                             seqLen = int(data[0])
+#                             headline = line
+#                             continue
+#                         except ValueError:
+#                             raise RuntimeError(f"CT file format Error at line {line_num}: the first item should be a digit")
+#                     else:
+#                         raise RuntimeError(f"CT file format Error at line {line_num}: the first item should be a digit")
+                
+#                 left_id = int(data[0])
+                
+#                 if seqLen == 0:
+#                     seqLen = left_id
+#                     headline = line
+#                 elif left_id != last_id + 1:
+#                     raise RuntimeError(f"CT file format error at line {line_num}: ID not continuous")
+#                 else:
+#                     right_id = int(data[4])
+#                     seq += data[1]
+#                     if right_id != 0 and left_id < right_id:
+#                         ctList.append((left_id, right_id))
+#                     last_id = left_id
+#                     if left_id == seqLen:
+#                         Ct[ID] = [seq, ctList, seqLen, headline]
+#                         assert seqLen == len(seq), f"Sequence length mismatch: expected {seqLen}, got {len(seq)}"
+#                         last_id = 0
+#                         seq = ""
+#                         ctList = []
+#                         ID += 1
+#                         seqLen = 0
+#                         if not load_all:
+#                             return Ct[1]
+        
+#         if seq:
+#             Ct[ID] = [seq, ctList, seqLen, headline]
+#             if seqLen != last_id:
+#                 raise RuntimeError("CT file format error: Unexpected end of file")
+        
+#         return Ct if load_all else Ct[1]
+    
+#     except Exception as e:
+#         print(f"Error processing file {ctFn}: {str(e)}")
+#         return None  # Return None to indicate that this file had an error
+
+
+
 def parse_pseudoknot(ctList):
     """
     copy from IPyRSSA

@@ -72,8 +72,8 @@ def read_examples(args,file_path, session):
         examples = []
         for p_id, key in enumerate(data_dict.keys(),start=1):
 
-            print(key)
-            print(data_dict[key])
+            # print(key)
+            # print(data_dict[key])
             seq = data_dict[key]['seq']
             seq_uppercase = convert_to_upper(seq) #ACGU big letter
         
@@ -84,9 +84,10 @@ def read_examples(args,file_path, session):
             pseudo_pairs = data_dict[key]['pseudo_pairs']
 
             normal_structure = data_dict[key]['normal_structure'] #...((((....))))
-            pair_list, parse_pair = get_tree(normal_structure) 
+            pair_list, parse_pair, pse_pair = get_tree(normal_structure,pseudo_pairs) 
 
             parse_pair = [(x+1, y+1) for x, y in parse_pair]
+            pse_pair = [(x+1, y+1) for x, y in pse_pair]
             pair_list = [(x+1, y+1) for x, y in pair_list]
 
             # 初始化arc和rel矩阵
@@ -96,6 +97,9 @@ def read_examples(args,file_path, session):
             # 构建heads字典
             heads = {word: head for head, word in parse_pair}
             heads.update({word: head for head, word in pair_list})
+            heads.update({word: head for head, word in pse_pair})
+
+            pseudo_flat_list = [item for pair in pseudo_pairs for item in pair]
 
             # 构建relations字典
             relations = {}
@@ -104,10 +108,13 @@ def read_examples(args,file_path, session):
                     relations[word] = 'stem'
                 else:
                     relations[word] = 'stemnect'
+            for head, word in pse_pair:
+                if (head, word) in pseudo_flat_list or (word, head) in pseudo_flat_list:
+                    relations[word] = 'pseudo'
+                else:
+                    relations[word] = 'stemnect'
             for head, word in pair_list:
                 relations[word] = 'loop'
-            for head, word in pseudo_pairs:
-                relations[word] = 'pseudo'
 
             # 遍历seq_uppercase，填充arc和rel
             for i in range(1, len(seq_uppercase) + 1):
@@ -148,6 +155,7 @@ def process_rna_files(dir_name):
 
     # 遍历目录下的所有文件
     for filename in os.listdir(dir_name):
+        # print(filename)
         # 去除文件扩展名
         file_name_without_ext = os.path.splitext(filename)[0]
         # 检查文件是否是.ct文件
@@ -157,6 +165,8 @@ def process_rna_files(dir_name):
             # 转换ct为dot
 
             normal_structure, normal_pairs, pseudo_pairs = ct2dot_and_pairs(ct[1], len(ct[0]))
+            if pseudo_pairs:
+                print(f"伪结存在于文件: {filename}")
 
             # 把结果存储到字典中
             result_dict[file_name_without_ext] = {"normal_structure": normal_structure, "normal_pairs": normal_pairs, "pseudo_pairs": pseudo_pairs}    

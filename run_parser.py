@@ -38,16 +38,26 @@ class RNAbiaffine():
         train_dataset = Biaffine_Dataset(
             self.args,
             examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/TR0/", session=self.args.train_session),
+            
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/RNAstrAlign/train1/", session=self.args.train_session),
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TrainSetA/", session=self.args.train_session),
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/test/", session=self.args.train_session),
             data_type="train"
         )
         eval_dataset = Biaffine_Dataset(
             self.args,
-            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/VL0/", session=self.args.eval_session),
+            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/TS0/", session=self.args.eval_session),
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/RNAstrAlign/val1/", session=self.args.eval_session),
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TestSetB/", session=self.args.eval_session),
             data_type="dev"
         )
         test_dataset = Biaffine_Dataset(
             self.args,
-            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNAnew_dataset/bpRNAnew.nr500.canonicals/", session=self.args.test_session),
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/VL0/", session=self.args.eval_session),
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/ArchiveII/", session=self.args.test_session),
+            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TestSetB/", session=self.args.eval_session),
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/check/", session=self.args.test_session),
+            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/RNAstrAlign/test1/", session=self.args.test_session),
             data_type="test"
         )
 
@@ -242,6 +252,7 @@ class RNAbiaffine():
                 s_arc, s_rel = self.model(batch_token_ids=batch_token_ids)
 
                 s_time = time.time()
+                print(s_time)
                 beta = args.beta
                 seed = -1
                 pred_contacts = self.model.decode(s_arc, s_rel, seed, beta, mask, args.tree, args.proj)
@@ -529,6 +540,7 @@ class RNAbiaffine():
         stem_mask = (rels == stem_index)
         pseudo_mask = (rels == pseudo_index)
         combined_mask = stem_mask | pseudo_mask
+        # combined_mask = pseudo_mask
 
         
         # 设置contacts矩阵中对应的位置为1
@@ -594,8 +606,8 @@ def get_argparse():
     parser.add_argument("--finetune", action='store_true', help="finetune embedding")
 
     parser.add_argument("--train_session", default="TR0", type=str, help="TR0, TR1")
-    parser.add_argument("--eval_session", default="VL0", type=str, help="VL0")
-    parser.add_argument("--test_session", default="bpnew", type=str, help="TS0, bpnew")
+    parser.add_argument("--eval_session", default="TS0", type=str, help="VL0")
+    parser.add_argument("--test_session", default="VB", type=str, help="TS0, bpnew")
 
     parser.add_argument("--cache_data", default="./data/bp_", type=str, help="data pkl path")
     parser.add_argument("--is_pse", action='store_true', help="include pseudoknot or not")    
@@ -618,12 +630,14 @@ def get_argparse():
     parser.add_argument("--loss", default='cross_entropy', type=str, help="cross_entropy or focal_loss")
 
     # when predict
-    parser.add_argument("--predict", default="/home/ke/Documents/RNA_translation/RNA_mhs_biaffine/data/bp_", type=str, help="predict data file path")
-    parser.add_argument("--predict_session", default="TS0", type=str, help="predict session")
+    
+    parser.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/bp_/", type=str, help="predict data file path")
+    # parser.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/Str_", type=str, help="predict data file path")
+    parser.add_argument("--predict_session", default="VLA", type=str, help="predict session")
     parser.add_argument("--decode_round", default=1, type=int, help="how many times to make the prediction")
     parser.add_argument("--beta", default=0.0, type=float, help="beta stem map to added to arc")
-    parser.add_argument("--predict_save", default="./test/test/", type=str, help="result save")
-    parser.add_argument("--path", default="/home/ke/Documents/RNA_parser/RNA_parser/output/model.pt", type=str, help="model path")
+    parser.add_argument("--predict_save", default="/home/ke/Documents/RNA_parser/RNA_parser/test/test/", type=str, help="result save")
+    parser.add_argument("--path", default="/home/ke/Documents/RNA_parser/RNA_parser/TABoutput/Roberta_experiment/TRA/model.pt", type=str, help="model path")
 
     return parser
 
