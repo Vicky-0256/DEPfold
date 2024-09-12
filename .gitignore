@@ -6,4 +6,7 @@
 **/bpnew/
 pretrained/
 pretrained/RNA-FM_pretrained.pth
+output/
+data/ArchiveII/
+data/RNAstrAlign/
 
