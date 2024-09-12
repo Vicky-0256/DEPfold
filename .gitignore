@@ -9,4 +9,5 @@ pretrained/RNA-FM_pretrained.pth
 output/
 data/ArchiveII/
 data/RNAstrAlign/
+data/Str_TR.pkl
 
