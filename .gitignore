@@ -1,4 +1,5 @@
 *.pt
+*.pkl
 *.log
 *.out
 *.stats
@@ -10,4 +11,5 @@ output/
 data/ArchiveII/
 data/RNAstrAlign/
 data/Str_TR.pkl
+
 
