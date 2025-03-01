@@ -56,7 +56,7 @@ class RNAbiaffine():
             self.args,
             # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/VL0/", session=self.args.eval_session),
             # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/ArchiveII/", session=self.args.test_session),
-            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TestSetB/", session=self.args.test_session),
+            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TestSetB/", session=self.args.eval_session),
             # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/check/", session=self.args.test_session),
             # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/RNAstrAlign/test1/", session=self.args.test_session),
             data_type="test"
@@ -138,17 +138,17 @@ class RNAbiaffine():
             logging.info('Eval F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}'.format(
                 np.average(eval_f1), np.average(p), np.average(r), np.average(run_time))
             )
-            # for batch in test_iter:
-            #     batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
-            #     # test_metric += self.eval_step(batch, beta)
-            #     interval_t, eval_result = self.eval_step(batch, beta)
-            #     test_time.append(interval_t)
-            #     test_results += eval_result
+            for batch in test_iter:
+                batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
+                # test_metric += self.eval_step(batch, beta)
+                interval_t, eval_result = self.eval_step(batch, beta)
+                test_time.append(interval_t)
+                test_results += eval_result
 
-            # p, r, f1 = zip(*test_results)
-            # print('Test F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(test_time)))
-            # logging.info('Test F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(test_time)))
-            # # logger.info(f"dev: {metric}")
+            p, r, f1 = zip(*test_results)
+            print('Test F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(test_time)))
+            logging.info('Test F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(test_time)))
+            # logger.info(f"dev: {metric}")
             # logger.info(f"test: {test_metric}")
             t = datetime.now() - start
             # if metric >= self.best_metric:
@@ -241,11 +241,8 @@ class RNAbiaffine():
         start = datetime.now()
         self.model.eval()
         seq_all, gold, predict = [], [], []
-        pred_result = []
-
-        predict_path = args.predict_save
-
-        for batch_idx, batch in enumerate(pred_iter):
+        pred_result = []  
+        for batch in pred_iter:
             batch = (batch[0],) + tuple(t.to(args.device) for t in batch[1:])
 
             seq, batch_token_ids, mask, arcs, rels = batch
@@ -259,20 +256,16 @@ class RNAbiaffine():
                 beta = args.beta
                 seed = -1
                 pred_contacts = self.model.decode(s_arc, s_rel, seed, beta, mask, args.tree, args.proj)
-
-                contact_map = self.model.contact_map(s_arc, s_rel, mask, is_softmax = False)
-                contact_map_softmax = self.model.contact_map(s_arc, s_rel, mask, is_softmax = True)
-
-                # 循环处理批次中的每个 contact_map 并保存到文件
-                for i in range(contact_map.shape[0]):  # 假设第一个维度是批次维度
-                    single_contact_map = contact_map[i,:-2, :-2].cpu().numpy()  # 提取单个 contact map
-                    self.save_upper_triangle(single_contact_map, predict_path + f"contact_map_{batch_idx}_{i}.txt")
-
-                    single_contact_map_softmax = contact_map_softmax[i,:-2, :-2].cpu().numpy()  # 提取单个 softmax contact map
-                    self.save_upper_triangle(single_contact_map_softmax, predict_path + f"contact_map_softmax_{batch_idx}_{i}.txt")
                 interval_t = time.time() - s_time
+                # torch.set_printoptions(edgeitems=pred_contacts.size(-1), 
+                #        linewidth=1000)
+                # print(pred_contacts)
 
                 contacts = self.create_contacts_from_arcs_and_rels(arcs, rels)
+                # print(arcs)
+                # print(rels)
+                # print(contacts)
+
 
                 # Move tensors to CPU for evaluation
                 pred_contacts_cpu = pred_contacts.cpu()
@@ -297,6 +290,7 @@ class RNAbiaffine():
         logger.info('Predict file F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(
             np.mean(f1), np.mean(p), np.mean(r), np.mean(interval_t)))
         
+        predict_path = args.predict_save
         with open(os.path.join(predict_path, 'seq.txt'), 'w') as file:
             file.write('\n'.join(seq_all))
         with open(os.path.join(predict_path, 'predict.txt'), 'w') as file:
@@ -306,17 +300,44 @@ class RNAbiaffine():
 
         logger.info(f"Prediction completed. Time taken: {datetime.now() - start}")
 
-    def save_upper_triangle(self, contact_map, filename):
-        with open(filename, 'w') as f:
-            rows, cols = contact_map.shape
-            for i in range(rows):
-                for j in range(i + 1, cols):  # 只输出上三角矩阵的部分
-                    value = contact_map[i, j]
-                    if value != 0:  # 检查值是否为0，跳过0值
-                        f.write(f"({i+1},{j+1}) {value}\n")  # 索引从1开始
-                        
-    def contacts_to_dot_bracket(self, contacts):
 
+
+    def contacts_to_dot_bracket(self, contacts):
+        """
+        # 将接触矩阵转换为点括号表示法的 RNA 二级结构，改进版本。
+        
+        # 参数:
+        # contacts (torch.Tensor): 形状为 [batch_size, seq_len, seq_len] 的接触矩阵
+
+        # 返回:
+        # list of str: 每个元素是一个序列的点括号表示
+        # """
+        # batch_size, seq_len, _ = contacts.shape
+        # dot_bracket_list = []
+
+        # for batch in range(batch_size):
+        #     structure = ['.' for _ in range(seq_len)]
+        #     stack = []
+
+        #     for i in range(seq_len):
+        #         if i in stack:
+        #             continue
+                
+        #         if torch.any(contacts[batch, i, i+1:]):
+        #             j = torch.where(contacts[batch, i, i+1:])[0][0].item() + i + 1
+                    
+        #             # 检查 j 是否已经被配对
+        #             if j in stack:
+        #                 print('j 已经被配对')
+
+        #             if j not in stack:
+        #                 structure[i] = '('
+        #                 structure[j] = ')'
+        #                 stack.append(j)
+
+
+                
+        #     dot_bracket_list.append(''.join(structure))
         """
         Convert contact matrices to dot-bracket representation of RNA secondary structure.
         
@@ -342,16 +363,22 @@ class RNAbiaffine():
             col_indices = np.where(contacts[batch] == 1)[1]
             
             # 创建配对列表
+            # ctList = list(zip(row_indices, col_indices))
+            
+            # dot_bracket = ct2dot(ctList, seq_len)
+            # dot_bracket_list.append(dot_bracket[0:-2])
             ctList = list(zip(row_indices, col_indices))
-            # print(ctList)
+
 
             filtered_ctList = [(i, j) for i, j in ctList if i < seq_len - 2 and j < seq_len - 2]
-            # print(filtered_ctList)
+            if not filtered_ctList:
+                print("Warning: ctList is empty")
             
             dot_bracket = ct2dot(filtered_ctList, seq_len-2)
             dot_bracket_list.append(dot_bracket)
 
         return dot_bracket_list
+
 
         '''
         for step, batch in enumerate(pred_iter):
@@ -589,10 +616,10 @@ def get_argparse():
     parser.add_argument("--eval_session", default="TS0", type=str, help="VL0")
     parser.add_argument("--test_session", default="VB", type=str, help="TS0, bpnew")
 
-    parser.add_argument("--cache_data", default="./data/bp_", type=str, help="data pkl path")
+    parser.add_argument("--cache_data", default="./data/Str_", type=str, help="data pkl path")
     parser.add_argument("--is_pse", action='store_true', help="include pseudoknot or not")    
     parser.add_argument("--per_gpu_train_batch_size", default=3, type=int, help="训练Batch size的大小")
-    parser.add_argument("--per_gpu_eval_batch_size", default=3, type=int, help="验证Batch size的大小")
+    parser.add_argument("--per_gpu_eval_batch_size", default=1, type=int, help="验证Batch size的大小")
     parser.add_argument("--num_train_epochs", default=100, type=float, help="训练轮数")
     parser.add_argument("--early_stop", default=8, type=int, help="早停")
 
@@ -606,18 +633,18 @@ def get_argparse():
 
     parser.add_argument("--output_dir", default="./output", type=str, help="保存模型的路径")
 
-    parser.add_argument("--mode", default='train', type=str, help="train or predict")
+    parser.add_argument("--mode", default='predict', type=str, help="train or predict")
     parser.add_argument("--loss", default='cross_entropy', type=str, help="cross_entropy or focal_loss")
 
     # when predict
     
-    parser.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/bp_/", type=str, help="predict data file path")
-    # parser.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/Str_", type=str, help="predict data file path")
-    parser.add_argument("--predict_session", default="VLA", type=str, help="predict session")
+    # parser.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/bp_/", type=str, help="predict data file path")
+    parser.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/Str_", type=str, help="predict data file path")
+    parser.add_argument("--predict_session", default="AR", type=str, help="predict session")
     parser.add_argument("--decode_round", default=1, type=int, help="how many times to make the prediction")
     parser.add_argument("--beta", default=0.0, type=float, help="beta stem map to added to arc")
-    parser.add_argument("--predict_save", default="/home/ke/Documents/RNA_parser/RNA_parser/test/test/", type=str, help="result save")
-    parser.add_argument("--path", default="/home/ke/Documents/RNA_parser/RNA_parser/TABoutput/Roberta_experiment/TRA/model.pt", type=str, help="model path")
+    parser.add_argument("--predict_save", default="/home/ke/Documents/RNA_parser/RNA_parser/STRoutput/STRoutput/Roberta_experiment/AR/", type=str, help="result save")
+    parser.add_argument("--path", default="/home/ke/Documents/RNA_parser/RNA_parser/STRoutput/STRoutput/Roberta_experiment/model.pt", type=str, help="model path")
 
     return parser
 

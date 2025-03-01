@@ -293,4 +293,31 @@ def ct2dot_and_pairs(ctList, length):
     return "".join(dot), normal_pairs, pseudo_pairs
 
 
+def ct2dot(ctList, length):
+    """
+    ctList              -- paired-bases: [(3, 8), (4, 7)]
+    length              -- Length of structure
+    
+    Convert ctlist structure to dot-bracket
+    [(3, 8), (4, 7)]  => ..((..))..
+    """
+    dot = ['.']*length
+    if len(ctList) == 0:
+        return "".join(dot)
+    ctList = sorted(ctList, key=lambda x:x[0])
+    ctList = [ it for it in ctList if it[0]<it[1] ]
+    if len(ctList) > 0:
+
+        pseudo_duplex = parse_pseudoknot(ctList)
+        for l,r in ctList:
+            dot[l-1] = '('
+            dot[r-1] = ')'
+        dottypes = [ '<>', r'{}', '[]' ]
+        if len(pseudo_duplex)>len(dottypes):
+            print("Warning: too many psudoknot type: %s>%s" % (len(pseudo_duplex),len(dottypes)))
+        for i,duplex in enumerate(pseudo_duplex):
+            for l,r in duplex:
+                dot[l-1] = dottypes[i%3][0]
+                dot[r-1] = dottypes[i%3][1]
+    return "".join(dot)
 

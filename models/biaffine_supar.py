@@ -291,217 +291,174 @@ class BiaffineModel(nn.Module):
             energies.append(energy)
 
         return energies
-
+    
 
     def decode(self, s_arc, s_rel, seed, beta,mask, tree, proj):
-        
-        r"""
-        Args:
-            s_arc (~torch.Tensor): ``[batch_size, seq_len, seq_len]``.
-                Scores of all possible arcs.
-            s_rel (~torch.Tensor): ``[batch_size, seq_len, seq_len, n_labels]``.
-                Scores of all possible labels on each arc.
-            mask (~torch.BoolTensor): ``[batch_size, seq_len]``.
-                The mask for covering the unpadded tokens.
-            tree (bool):
-                If ``True``, ensures to output well-formed trees. Default: ``False``.
-            proj (bool):
-                If ``True``, ensures to output projective trees. Default: ``False``.
+        # print(s_arc.shape)
+        # 1. 生成新的 constrain matrix
+        row_softmax = F.softmax(s_arc, dim=-1)
+        col_softmax = F.softmax(s_arc, dim=-2)
+        s_arc_softmax = row_softmax
+            # 创建一个大于阈值的掩码
+        # threshold_mask = (s_arc_softmax > 0.1).float()
 
-        Returns:
-            ~torch.LongTensor, ~torch.LongTensor:
-                Predicted arcs and labels of shape ``[batch_size, seq_len]``.
-        """
+
+        # 1.1 保留最后一个维度索引的最大三个值
+        _, top_3_indices = torch.topk(s_arc_softmax, k=1, dim=-1)
+        top_3_mask = torch.zeros_like(s_arc).scatter_(-1, top_3_indices, 1.0) 
+
+
+        # torch.set_printoptions(edgeitems=mask.size(-1), sci_mode=False, precision=2,
+        #        linewidth=1000)
+        # print(s_arc)
+        # print(top_3_mask)
+        
+        # 1.3 只保留上三角矩阵（不包括对角线）
+        upper_triangular_mask = torch.triu(torch.ones_like(s_arc), diagonal=1)
+        # print(upper_triangular_mask)
+
+        # 1.2 应用原来的 mask
+
+        masked_s_arc = s_arc_softmax * mask.unsqueeze(1).float()
+
+        # 1.4 只保留 s_rel 中为 stem 和 pseudo 的
+        label_map = self.args.relation_dic
+        stem_index = label_map['stem']
+    
+        pseudo_index = label_map['pseudo']
+
+
+        _, max_label_indices = torch.max(s_rel, dim=-1)
+
+        stem_pseudo_mask = ((max_label_indices == stem_index) | (max_label_indices == pseudo_index))
+        # print(stem_pseudo_mask.shape)
+        
+        # 组合所有约束条件
+        constrain_matrix = top_3_mask*  upper_triangular_mask * stem_pseudo_mask.float()
+        # print(constrain_matrix)
+        # constrain_matrix = (max_label_indices == stem_index) 
+        # 应用 constrain matrix 到 s_arc
+        constrained_s_arc = masked_s_arc * constrain_matrix
+        # print(constrained_s_arc)
+        
+        # 新增步骤：取每行和每列的最大值
+        col_max = torch.argmax(constrained_s_arc, dim=-1)
+        col_one = torch.zeros_like(constrained_s_arc).scatter(-1, col_max.unsqueeze(-1), 1.0)
+        row_max = torch.argmax(constrained_s_arc, dim=-2)
+        row_one = torch.zeros_like(constrained_s_arc).scatter(-2, row_max.unsqueeze(-2), 1.0)
+        pred_contacts = row_one * col_one
+     
+        return pred_contacts
+
+    # def decode(self, s_arc, s_rel, seed, beta,mask, tree, proj):
+        
+    #     r"""
+    #     Args:
+    #         s_arc (~torch.Tensor): ``[batch_size, seq_len, seq_len]``.
+    #             Scores of all possible arcs.
+    #         s_rel (~torch.Tensor): ``[batch_size, seq_len, seq_len, n_labels]``.
+    #             Scores of all possible labels on each arc.
+    #         mask (~torch.BoolTensor): ``[batch_size, seq_len]``.
+    #             The mask for covering the unpadded tokens.
+    #         tree (bool):
+    #             If ``True``, ensures to output well-formed trees. Default: ``False``.
+    #         proj (bool):
+    #             If ``True``, ensures to output projective trees. Default: ``False``.
+
+    #     Returns:
+    #         ~torch.LongTensor, ~torch.LongTensor:
+    #             Predicted arcs and labels of shape ``[batch_size, seq_len]``.
+    #     """
+    #     mask = mask.bool()   
+    #     lens = mask.sum(1)
+
+    #     s_arc_probs = F.softmax(s_arc, dim=-1)
+    #     s_rel_probs = F.softmax(s_rel[:, :, :, 3], dim=-1)
+
+    #     # torch.set_printoptions(edgeitems=s_arc.size(-1), sci_mode=False, precision=1,
+    #     #        linewidth=1000)
+    #     # print(s_arc)
+
+    #     # torch.set_printoptions(edgeitems=s_arc_probs.size(-1), sci_mode=False, precision=1,
+    #     #        linewidth=1000)
+    #     # print(s_arc_probs)
+
+    #     if beta != 0:
+    #         s_arc = s_arc_probs + beta * s_rel_probs
+
+    #     if seed == -1:
+    #         arc_preds = s_arc.argmax(-1)
+    #     else:
+    #         torch.manual_seed(seed)
+
+    #         # Initialize an empty list to store arc_preds for each batch
+    #         batch_arc_preds = []
+
+    #         # Loop through each batch
+    #         for batch in s_arc_probs:
+    #             # Apply multinomial sampling for the current batch
+    #             # Since batch is 2D now ([133, 133]), this is valid
+    #             arc_pred = torch.multinomial(batch, num_samples=1).squeeze()  # num_samples=1 for one sample per row
+    #             batch_arc_preds.append(arc_pred)
+
+    #         # Convert list of tensors back into a single tensor
+    #         arc_preds = torch.stack(batch_arc_preds)
+
+    #     bad = [not istree(seq[1:i+1], proj) for i, seq in zip(lens.tolist(), arc_preds.tolist())]
+
+    #     if tree and any(bad):
+    #         arc_preds[bad] = (DependencyCRF if proj else MatrixTree)(s_arc[bad], mask[bad].sum(-1)).argmax
+
+
+    #     # 在arc_preds的索引下，得到s_arc_probs保留的值
+    #     arc_contact = torch.zeros_like(s_arc)
+    #     max_values = s_arc_probs.gather(-1, arc_preds.unsqueeze(-1))
+    #     arc_contact.scatter_(-1, arc_preds.unsqueeze(-1), max_values)
+
+    #     label_map = self.args.relation_dic
+    #     stem_index = label_map['stem']
+    #     pseudo_index = label_map['pseudo']
+
+    #     rel_preds = s_rel.argmax(-1).gather(-1, arc_preds.unsqueeze(-1)).squeeze(-1)
+
+    #     _, max_label_indices = torch.max(s_rel, dim=-1)
+
+    #     stem_pseudo_mask = ((max_label_indices == stem_index) | (max_label_indices == pseudo_index))
+    #     constrained_s_arc = arc_contact * stem_pseudo_mask.float()
+
+    #     upper_triangular_mask = torch.triu(torch.ones_like(constrained_s_arc), diagonal=1)
+
+    #     # 1. 仅保留上三角矩阵部分(不包括对角线)
+    #     upper_triangular = constrained_s_arc * upper_triangular_mask
+
+    #     # 2. 将上三角矩阵对称到下三角矩阵
+    #     symmetric_matrix = upper_triangular + upper_triangular.transpose(-2, -1)
+
+    #     col_max = torch.argmax(symmetric_matrix, dim=-1)
+    #     col_one = torch.zeros_like(symmetric_matrix).scatter(-1, col_max.unsqueeze(-1), 1.0)
+    #     row_max = torch.argmax(symmetric_matrix, dim=-2)
+    #     row_one = torch.zeros_like(symmetric_matrix).scatter(-2, row_max.unsqueeze(-2), 1.0)
+    #     return row_one * col_one
+
+    def contact_map(self, s_arc, s_rel, mask, is_softmax):
+
         mask = mask.bool()   
         lens = mask.sum(1)
 
-        s_arc_probs = F.softmax(s_arc, dim=-1)
-        s_rel_probs = F.softmax(s_rel[:, :, :, 3], dim=-1)
-
-        # torch.set_printoptions(edgeitems=s_arc.size(-1), sci_mode=False, precision=1,
-        #        linewidth=1000)
-        # print(s_arc)
-
-        # torch.set_printoptions(edgeitems=s_arc_probs.size(-1), sci_mode=False, precision=1,
-        #        linewidth=1000)
-        # print(s_arc_probs)
-
-        if beta != 0:
-            s_arc = s_arc_probs + beta * s_rel_probs
-
-        if seed == -1:
-            arc_preds = s_arc.argmax(-1)
-        else:
-            torch.manual_seed(seed)
-
-            # Initialize an empty list to store arc_preds for each batch
-            batch_arc_preds = []
-
-            # Loop through each batch
-            for batch in s_arc_probs:
-                # Apply multinomial sampling for the current batch
-                # Since batch is 2D now ([133, 133]), this is valid
-                arc_pred = torch.multinomial(batch, num_samples=1).squeeze()  # num_samples=1 for one sample per row
-                batch_arc_preds.append(arc_pred)
-
-            # Convert list of tensors back into a single tensor
-            arc_preds = torch.stack(batch_arc_preds)
-
-        bad = [not istree(seq[1:i+1], proj) for i, seq in zip(lens.tolist(), arc_preds.tolist())]
-
-        if tree and any(bad):
-            arc_preds[bad] = (DependencyCRF if proj else MatrixTree)(s_arc[bad], mask[bad].sum(-1)).argmax
-
-
-        # 在arc_preds的索引下，得到s_arc_probs保留的值
-        arc_contact = torch.zeros_like(s_arc)
-        max_values = s_arc_probs.gather(-1, arc_preds.unsqueeze(-1))
-        arc_contact.scatter_(-1, arc_preds.unsqueeze(-1), max_values)
+        if is_softmax:
+            s_arc = F.softmax(s_arc, dim=-1)
 
         label_map = self.args.relation_dic
         stem_index = label_map['stem']
         pseudo_index = label_map['pseudo']
 
-        rel_preds = s_rel.argmax(-1).gather(-1, arc_preds.unsqueeze(-1)).squeeze(-1)
-
         _, max_label_indices = torch.max(s_rel, dim=-1)
 
         stem_pseudo_mask = ((max_label_indices == stem_index) | (max_label_indices == pseudo_index))
-        constrained_s_arc = arc_contact * stem_pseudo_mask.float()
-        
-        # torch.set_printoptions(edgeitems=constrained_s_arc.size(-1), sci_mode=False, precision=1,
-        #        linewidth=1000)
-        # print(constrained_s_arc)
 
-        # col_max = torch.argmax(constrained_s_arc, dim=-1)
-        # col_one = torch.zeros_like(constrained_s_arc).scatter(-1, col_max.unsqueeze(-1), 1.0)
-        # col_one[constrained_s_arc.max(dim=-1)[0] <= 0] = 0
-        row_max = torch.argmax(constrained_s_arc, dim=-2)
-        row_one = torch.zeros_like(constrained_s_arc).scatter(-2, row_max.unsqueeze(-2), 1.0)
-        # torch.set_printoptions(edgeitems=row_one.size(-1), sci_mode=False, precision=1,
-        #        linewidth=1000)
-        # print(row_one)
+        contact_map = s_arc * stem_pseudo_mask.float() * mask
 
-        col_max_values = constrained_s_arc.max(dim=-2)[0]
-        # torch.set_printoptions(edgeitems=col_max_values.size(-1), sci_mode=False, precision=1,
-        #        linewidth=1000)
-        # print(col_max_values)
-
-        col_max_mask = (col_max_values <= 0).unsqueeze(-2)  # 改成 -2 以匹配列的维度
-        row_one = row_one * (~col_max_mask)  # 使用按位取反保证只置零相应列
-
-        # torch.set_printoptions(edgeitems=row_one.size(-1), sci_mode=False, precision=1,
-        #        linewidth=1000)
-        # print(row_one)
-
-        # return pred_contacts
-        return row_one
-        
-        
-        # rel_preds = s_rel.argmax(-1).gather(-1, arc_preds.unsqueeze(-1)).squeeze(-1)
-
-        # return arc_preds, rel_preds
-
-    # def decode(self, s_arc, s_rel, seed, beta,mask, tree, proj):
-    #     # setattr(args, 'relation_dic', {'loop': 1, 'root': 2, 'stem': 3, 'stemnect': 4, 'pseudo': 5})
-    #     #需要检查一下label的向量维度是不是6
-
-    #     s_arc = s_arc * mask.unsqueeze(1).float()
-    #     # torch.set_printoptions(edgeitems=s_arc.size(-1), sci_mode=False, precision=1,
-    #     #        linewidth=1000)
-    #     # print(s_arc)
-
-    #     s_arc = F.softmax(s_arc, dim=-1)
-    #     # torch.set_printoptions(edgeitems=s_arc.size(-1), sci_mode=False, precision=1,
-    #     #        linewidth=1000)
-    #     # print(s_arc)
-
-    #     label_map = self.args.relation_dic
-    #     stem_index = label_map['stem']
-    #     pseudo_index = label_map['pseudo']
-
-    #     num_labels = s_rel.size(-1)  # 获取 s_rel 张量最后一个维度的大小
-    #     expected_num_labels = len(label_map)  # 获取标签字典中的标签数量
-    #     assert num_labels == expected_num_labels, f"Label dimension mismatch. Expected {expected_num_labels}, got {num_labels}"
-        
-
-    #     _, max_label_indices = torch.max(s_rel, dim=-1)
-        
-    #     combined_mask = ((max_label_indices == stem_index) | (max_label_indices == pseudo_index))
-
-    #     torch.set_printoptions(edgeitems=combined_mask.size(-1), sci_mode=False, precision=1,
-    #            linewidth=1000)
-    #     print(combined_mask)
-
-    
-
-    #     result = s_arc * combined_mask.float()
-        
-    #     # 应用原始的mask
-    #     result = result * mask.unsqueeze(1).float()
-    #     # torch.set_printoptions(edgeitems=result.size(-1), 
-    #     #         linewidth=1000)
-    #     # print(result)
-    #     pred_contacts = row_col_argmax(result)
-
-    #     return pred_contacts
-
-    # def decode(self, s_arc, s_rel, seed, beta,mask, tree, proj):
-    #     # print(s_arc.shape)
-    #     # 1. 生成新的 constrain matrix
-    #     row_softmax = F.softmax(s_arc, dim=-1)
-    #     col_softmax = F.softmax(s_arc, dim=-2)
-    #     s_arc_softmax = 0.5 * (row_softmax + col_softmax)
-    #         # 创建一个大于阈值的掩码
-    #     threshold_mask = (s_arc_softmax > 0.1).float()
-
-
-    #     # 1.1 保留最后一个维度索引的最大三个值
-    #     _, top_3_indices = torch.topk(s_arc_softmax, k=3, dim=-1)
-    #     top_3_mask = torch.zeros_like(s_arc).scatter_(-1, top_3_indices, 1.0) 
-
-
-    #     torch.set_printoptions(edgeitems=mask.size(-1), sci_mode=False, precision=2,
-    #            linewidth=1000)
-    #     # print(s_arc)
-    #     # print(top_3_mask)
-        
-    #     # 1.3 只保留上三角矩阵（不包括对角线）
-    #     upper_triangular_mask = torch.triu(torch.ones_like(s_arc), diagonal=1)
-    #     # print(upper_triangular_mask)
-
-    #     # 1.2 应用原来的 mask
-
-    #     masked_s_arc = s_arc_softmax * mask.unsqueeze(1).float()
-
-    #     # 1.4 只保留 s_rel 中为 stem 和 pseudo 的
-    #     label_map = self.args.relation_dic
-    #     stem_index = label_map['stem']
-    
-    #     pseudo_index = label_map['pseudo']
-
-
-    #     _, max_label_indices = torch.max(s_rel, dim=-1)
-
-    #     stem_pseudo_mask = ((max_label_indices == stem_index) | (max_label_indices == pseudo_index))
-    #     # print(stem_pseudo_mask.shape)
-        
-    #     # 组合所有约束条件
-    #     constrain_matrix = top_3_mask* threshold_mask * upper_triangular_mask * stem_pseudo_mask.float()
-    #     # print(constrain_matrix)
-    #     # constrain_matrix = (max_label_indices == stem_index) 
-    #     # 应用 constrain matrix 到 s_arc
-    #     constrained_s_arc = masked_s_arc * constrain_matrix
-    #     # print(constrained_s_arc)
-        
-    #     # 新增步骤：取每行和每列的最大值
-    #     col_max = torch.argmax(constrained_s_arc, dim=-1)
-    #     col_one = torch.zeros_like(constrained_s_arc).scatter(-1, col_max.unsqueeze(-1), 1.0)
-    #     row_max = torch.argmax(constrained_s_arc, dim=-2)
-    #     row_one = torch.zeros_like(constrained_s_arc).scatter(-2, row_max.unsqueeze(-2), 1.0)
-    #     pred_contacts = row_one * col_one
-     
-    #     return pred_contacts
+        return contact_map
 
 def istree(sequence: List[int], proj: bool = False, multiroot: bool = False) -> bool:
 

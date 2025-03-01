@@ -243,9 +243,10 @@ class RNAbiaffine():
         seq_all, gold, predict = [], [], []
         pred_result = []
 
-        predict_path = args.predict_save
-
-        for batch_idx, batch in enumerate(pred_iter):
+        i = 0
+        for batch in pred_iter:
+            i+=1
+            print(i)
             batch = (batch[0],) + tuple(t.to(args.device) for t in batch[1:])
 
             seq, batch_token_ids, mask, arcs, rels = batch
@@ -259,20 +260,27 @@ class RNAbiaffine():
                 beta = args.beta
                 seed = -1
                 pred_contacts = self.model.decode(s_arc, s_rel, seed, beta, mask, args.tree, args.proj)
+                
+                batch_size, seq_len, _ = pred_contacts.shape
 
-                contact_map = self.model.contact_map(s_arc, s_rel, mask, is_softmax = False)
-                contact_map_softmax = self.model.contact_map(s_arc, s_rel, mask, is_softmax = True)
+                mask = torch.triu(torch.ones(seq_len, seq_len, dtype=torch.bool), diagonal=1).to(args.device)
+                
+                # 扩展掩码以匹配批次大小
+                mask = mask.unsqueeze(0).expand(batch_size, -1, -1)
+                
+                # 应用掩码
+                pred_contacts = pred_contacts.masked_fill(~mask, 0)
 
-                # 循环处理批次中的每个 contact_map 并保存到文件
-                for i in range(contact_map.shape[0]):  # 假设第一个维度是批次维度
-                    single_contact_map = contact_map[i,:-2, :-2].cpu().numpy()  # 提取单个 contact map
-                    self.save_upper_triangle(single_contact_map, predict_path + f"contact_map_{batch_idx}_{i}.txt")
-
-                    single_contact_map_softmax = contact_map_softmax[i,:-2, :-2].cpu().numpy()  # 提取单个 softmax contact map
-                    self.save_upper_triangle(single_contact_map_softmax, predict_path + f"contact_map_softmax_{batch_idx}_{i}.txt")
                 interval_t = time.time() - s_time
+                # torch.set_printoptions(edgeitems=pred_contacts.size(-1), 
+                #        linewidth=1000)
+                # print(pred_contacts)
 
                 contacts = self.create_contacts_from_arcs_and_rels(arcs, rels)
+                # print(arcs)
+                # print(rels)
+                # print(contacts)
+
 
                 # Move tensors to CPU for evaluation
                 pred_contacts_cpu = pred_contacts.cpu()
@@ -297,6 +305,7 @@ class RNAbiaffine():
         logger.info('Predict file F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(
             np.mean(f1), np.mean(p), np.mean(r), np.mean(interval_t)))
         
+        predict_path = args.predict_save
         with open(os.path.join(predict_path, 'seq.txt'), 'w') as file:
             file.write('\n'.join(seq_all))
         with open(os.path.join(predict_path, 'predict.txt'), 'w') as file:
@@ -306,15 +315,7 @@ class RNAbiaffine():
 
         logger.info(f"Prediction completed. Time taken: {datetime.now() - start}")
 
-    def save_upper_triangle(self, contact_map, filename):
-        with open(filename, 'w') as f:
-            rows, cols = contact_map.shape
-            for i in range(rows):
-                for j in range(i + 1, cols):  # 只输出上三角矩阵的部分
-                    value = contact_map[i, j]
-                    if value != 0:  # 检查值是否为0，跳过0值
-                        f.write(f"({i+1},{j+1}) {value}\n")  # 索引从1开始
-                        
+
     def contacts_to_dot_bracket(self, contacts):
 
         """
@@ -343,10 +344,8 @@ class RNAbiaffine():
             
             # 创建配对列表
             ctList = list(zip(row_indices, col_indices))
-            # print(ctList)
 
             filtered_ctList = [(i, j) for i, j in ctList if i < seq_len - 2 and j < seq_len - 2]
-            # print(filtered_ctList)
             
             dot_bracket = ct2dot(filtered_ctList, seq_len-2)
             dot_bracket_list.append(dot_bracket)
