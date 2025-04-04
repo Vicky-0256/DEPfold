@@ -15,135 +15,16 @@ from modules import MLP, Biaffine
 from utils.utils import MIN
 import RNA
 from typing import List
-from torch.distributions.distribution import Distribution
-from torch.distributions.utils import lazy_property
+# from torch.distributions.distribution import Distribution
+# from torch.distributions.utils import lazy_property
 import torch.autograd as autograd
 from typing import Iterable, Union
 from modules.tree import DependencyCRF, MatrixTree
 from modules.pretrained import TransformerEmbedding
 from modules.focalloss import FocalLoss
 from modules.pretrained import RNAfmEmbedding
-from utils.postprocess import row_col_argmax
-
-# class BiaffineModel(nn.Module):
-
-#     def __init__(self,args,
-#                  n_arc_mlp=500,
-#                  n_rel_mlp=100,
-#                  mlp_dropout=0.33,
-#                  scale=0,
-#                  ):
-#         super().__init__()
-
-#         self.args = args
-
-#         if args.is_pse:
-#             n_rels = 6
-#         else:
-#             n_rels = 5
-
-#         if self.args.embedding == 'one-hot':
-#             self.encoder = F.one_hot()
-#             self.bert_hidden = 25    
-
-#         elif self.args.embedding == 'RNA-fm':
-#             self.encoder = self.args.encoder.requires_grad_(self.args.finetune)
-#             self.encoder_dropout = nn.Dropout(p=0.33)
-#             self.bert_hidden = 640
-
-#         elif self.args.embedding == 'roberta-base':
-#             self.encoder = self.args.encoder(name=self.embedding, n_layers=4,pooling = 'mean',pad_index=1, finetune=self.args.finetune)
-#             self.encoder_dropout = nn.Dropout(p=0.33)
-#             self.bert_hidden = self.encoder.n_out
-#         else:
-#             raise ValueError(f"Unsupported embedding type: {self.embedding}")
-
-#         n_tag_mlp=256
-        
-#         self.mlp_tag1 = MLP(n_in=self.bert_hidden, n_out=n_arc_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_arc_mlp]  [B, L, 500]
-#         self.mlp_tag2 = MLP(n_in=n_arc_mlp, n_out=n_tag_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_tag_mlp]  [B, L, 256]
-
-#         self.arc_mlp_d1 = MLP(n_in=self.bert_hidden, n_out=n_arc_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_arc_mlp]  [B, L, 500]
-#         self.arc_mlp_d2 = MLP(n_in=n_arc_mlp + n_tag_mlp, n_out=n_arc_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_arc_mlp]  [B, L, 500]     
 
 
-#         self.arc_mlp_h1 = MLP(n_in=self.bert_hidden, n_out=n_arc_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_arc_mlp]  [B, L, 500]
-#         self.arc_mlp_h2 = MLP(n_in=n_arc_mlp + n_tag_mlp, n_out=n_arc_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_arc_mlp]  [B, L, 500]
-
-
-#         self.rel_mlp_d1 = MLP(n_in=self.bert_hidden, n_out=n_rel_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_rel_mlp]  [B, L, 100]
-#         self.rel_mlp_d2 = MLP(n_in=n_rel_mlp + n_tag_mlp, n_out=n_rel_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_rel_mlp]  [B, L, 100]
-
-#         self.rel_mlp_h1 = MLP(n_in=self.bert_hidden, n_out=n_rel_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_rel_mlp]  [B, L, 100]
-#         self.rel_mlp_h2 = MLP(n_in=n_rel_mlp + n_tag_mlp, n_out=n_rel_mlp, dropout=mlp_dropout) # [batch_size, seq_len, n_rel_mlp]  [B, L, 100]
-
-#         self.arc_attn = Biaffine(n_in=n_arc_mlp, scale=scale, bias_x=True, bias_y=False)
-#         self.rel_attn = Biaffine(n_in=n_rel_mlp, n_out=n_rels, bias_x=True, bias_y=True)
-
-#         if self.args.loss == 'cross_entropy':
-#             self.criterion = nn.CrossEntropyLoss()
-#         elif self.args.loss == 'focal_loss':
-#             self.criterion = FocalLoss(gamma=2, alpha=None, size_average=True)
-#         else:
-#             raise ValueError(f"Unsupported loss type: {self.loss}")
-
-
-#     def forward(self,
-#                 batch_token_ids=None,
-#                 ):
-
-#         if self.args.embedding == 'one-hot':
-#             bert_output = self.encoder(batch_token_ids, num_classes=25).float()
-
-#         elif self.args.embedding == 'RNA-fm':
-#             x = self.encoder(batch_token_ids, need_head_weights=False, repr_layers=[12], return_contacts=False)
-#             x = x["representations"][12]
-#             bert_output = self.encoder_dropout(x)   
-
-#         elif self.args.embedding == 'roberta-base':
-#             batch_token_ids = batch_token_ids.unsqueeze(-1)
-#             x = self.encoder(batch_token_ids)
-#             bert_output = self.encoder_dropout(x)  
-
-#         else:
-#             raise ValueError(f"Unsupported embedding type: {self.embedding}") 
-
-#         seq_len = bert_output.size(1)
-
-#         tag = self.mlp_tag1(bert_output)  # [B, L, 500]
-#         tag_hidden = self.mlp_tag2(tag) # [B, L, 256]
-
-#         arc_d = self.arc_mlp_d1(bert_output) # [batch_size, seq_len, n_arc_mlp] [B, L, 500]
-#         arc_d = torch.cat([arc_d, tag_hidden], dim=-1)  # [B, L, 500+256]
-#         arc_d = self.arc_mlp_d2(arc_d) # [B, L, 500]
-
-#         arc_h = self.arc_mlp_h1(bert_output)  # [B, L, 500]
-#         arc_h = torch.cat([arc_h, tag_hidden], dim=-1) # [B, L, 500+256]
-#         arc_h = self.arc_mlp_h2(arc_h) # [B, L, 500]
-
-#         rel_d = self.rel_mlp_d1(bert_output) # [B, L, 100]
-#         rel_d = torch.cat([rel_d, tag_hidden], dim=-1) # [B, L, 100+256]
-#         rel_d = self.rel_mlp_d2(rel_d) # [B, L, 100]
-
-#         rel_h = self.rel_mlp_h1(bert_output) # [B, L, 100]
-#         rel_h = torch.cat([rel_h, tag_hidden], dim=-1) # [B, L, 100+256]
-#         rel_h = self.rel_mlp_h2(rel_h) # [B, L, 100]
-
-    
-#         pad_index =self.args.tokenizer.padding_idx
-#         mask = batch_token_ids.ne(pad_index) if len(batch_token_ids.shape) < 3 else batch_token_ids.ne(pad_index).any(-1) #set pad to be false, but the start and end is true
-
-#         s_arc = self.arc_attn(arc_d, arc_h).masked_fill_(~mask.unsqueeze(1), MIN)  #MIN = -1e32 set the pad to be MIN
-
-#         # mask_bool = mask.bool()  # Convert mask to Boolean
-#         # s_arc = self.arc_attn(arc_d, arc_h).masked_fill_(mask_bool.unsqueeze(1), MIN) # Use the Boolean mask
-
-#         # s_arc = self.arc_attn(arc_d, arc_h).masked_fill_(~mask.unsqueeze(1), MIN) # [batch_size, seq_len, seq_len] [B, L, L]
-
-#         s_rel = self.rel_attn(rel_d, rel_h).permute(0, 2, 3, 1) # [batch_size, seq_len, seq_len, n_rels] [B, L, L, 5]
-
-#         return s_arc, s_rel
-    
 class BiaffineModel(nn.Module):
 
     def __init__(self,args,
@@ -273,24 +154,6 @@ class BiaffineModel(nn.Module):
         return arc_loss, rel_loss, loss
     
 
-
-    def calculate_free_energies(sequences, structures):
-        # 确保输入的序列和结构列表长度相同
-        if len(sequences) != len(structures):
-            raise ValueError("Sequences and structures must have the same length.")
-        
-        # 存储每个序列和结构的自由能结果
-        energies = []
-
-        # 循环遍历每个序列和结构组合
-        for sequence, structure in zip(sequences, structures):
-            # 创建RNA折叠复合体
-            fc = RNA.fold_compound(sequence)
-            # 计算并存储该结构的自由能
-            energy = fc.eval_structure(structure)
-            energies.append(energy)
-
-        return energies
     
 
     def decode(self, s_arc, s_rel, seed, beta,mask, tree, proj):
@@ -349,97 +212,7 @@ class BiaffineModel(nn.Module):
         pred_contacts = row_one * col_one
      
         return pred_contacts
-
-    # def decode(self, s_arc, s_rel, seed, beta,mask, tree, proj):
-        
-    #     r"""
-    #     Args:
-    #         s_arc (~torch.Tensor): ``[batch_size, seq_len, seq_len]``.
-    #             Scores of all possible arcs.
-    #         s_rel (~torch.Tensor): ``[batch_size, seq_len, seq_len, n_labels]``.
-    #             Scores of all possible labels on each arc.
-    #         mask (~torch.BoolTensor): ``[batch_size, seq_len]``.
-    #             The mask for covering the unpadded tokens.
-    #         tree (bool):
-    #             If ``True``, ensures to output well-formed trees. Default: ``False``.
-    #         proj (bool):
-    #             If ``True``, ensures to output projective trees. Default: ``False``.
-
-    #     Returns:
-    #         ~torch.LongTensor, ~torch.LongTensor:
-    #             Predicted arcs and labels of shape ``[batch_size, seq_len]``.
-    #     """
-    #     mask = mask.bool()   
-    #     lens = mask.sum(1)
-
-    #     s_arc_probs = F.softmax(s_arc, dim=-1)
-    #     s_rel_probs = F.softmax(s_rel[:, :, :, 3], dim=-1)
-
-    #     # torch.set_printoptions(edgeitems=s_arc.size(-1), sci_mode=False, precision=1,
-    #     #        linewidth=1000)
-    #     # print(s_arc)
-
-    #     # torch.set_printoptions(edgeitems=s_arc_probs.size(-1), sci_mode=False, precision=1,
-    #     #        linewidth=1000)
-    #     # print(s_arc_probs)
-
-    #     if beta != 0:
-    #         s_arc = s_arc_probs + beta * s_rel_probs
-
-    #     if seed == -1:
-    #         arc_preds = s_arc.argmax(-1)
-    #     else:
-    #         torch.manual_seed(seed)
-
-    #         # Initialize an empty list to store arc_preds for each batch
-    #         batch_arc_preds = []
-
-    #         # Loop through each batch
-    #         for batch in s_arc_probs:
-    #             # Apply multinomial sampling for the current batch
-    #             # Since batch is 2D now ([133, 133]), this is valid
-    #             arc_pred = torch.multinomial(batch, num_samples=1).squeeze()  # num_samples=1 for one sample per row
-    #             batch_arc_preds.append(arc_pred)
-
-    #         # Convert list of tensors back into a single tensor
-    #         arc_preds = torch.stack(batch_arc_preds)
-
-    #     bad = [not istree(seq[1:i+1], proj) for i, seq in zip(lens.tolist(), arc_preds.tolist())]
-
-    #     if tree and any(bad):
-    #         arc_preds[bad] = (DependencyCRF if proj else MatrixTree)(s_arc[bad], mask[bad].sum(-1)).argmax
-
-
-    #     # 在arc_preds的索引下，得到s_arc_probs保留的值
-    #     arc_contact = torch.zeros_like(s_arc)
-    #     max_values = s_arc_probs.gather(-1, arc_preds.unsqueeze(-1))
-    #     arc_contact.scatter_(-1, arc_preds.unsqueeze(-1), max_values)
-
-    #     label_map = self.args.relation_dic
-    #     stem_index = label_map['stem']
-    #     pseudo_index = label_map['pseudo']
-
-    #     rel_preds = s_rel.argmax(-1).gather(-1, arc_preds.unsqueeze(-1)).squeeze(-1)
-
-    #     _, max_label_indices = torch.max(s_rel, dim=-1)
-
-    #     stem_pseudo_mask = ((max_label_indices == stem_index) | (max_label_indices == pseudo_index))
-    #     constrained_s_arc = arc_contact * stem_pseudo_mask.float()
-
-    #     upper_triangular_mask = torch.triu(torch.ones_like(constrained_s_arc), diagonal=1)
-
-    #     # 1. 仅保留上三角矩阵部分(不包括对角线)
-    #     upper_triangular = constrained_s_arc * upper_triangular_mask
-
-    #     # 2. 将上三角矩阵对称到下三角矩阵
-    #     symmetric_matrix = upper_triangular + upper_triangular.transpose(-2, -1)
-
-    #     col_max = torch.argmax(symmetric_matrix, dim=-1)
-    #     col_one = torch.zeros_like(symmetric_matrix).scatter(-1, col_max.unsqueeze(-1), 1.0)
-    #     row_max = torch.argmax(symmetric_matrix, dim=-2)
-    #     row_one = torch.zeros_like(symmetric_matrix).scatter(-2, row_max.unsqueeze(-2), 1.0)
-    #     return row_one * col_one
-
+  
     def contact_map(self, s_arc, s_rel, mask, is_softmax):
 
         mask = mask.bool()   
@@ -459,6 +232,7 @@ class BiaffineModel(nn.Module):
         contact_map = s_arc * stem_pseudo_mask.float() * mask
 
         return contact_map
+
 
 def istree(sequence: List[int], proj: bool = False, multiroot: bool = False) -> bool:
 
@@ -519,17 +293,6 @@ def isprojective(sequence: List[int]) -> bool:
         False
     """
 
-    # pairs = [(h, d) for d, h in enumerate(sequence, 1) if h >= 0]
-    # for i, (hi, di) in enumerate(pairs):
-    #     for hj, dj in pairs[i + 1:]:
-    #         (li, ri), (lj, rj) = sorted([hi, di]), sorted([hj, dj])
-    #         if li <= hj <= ri and hi == dj:
-    #             return False
-    #         if lj <= hi <= rj and hj == di:
-    #             return False
-    #         if (li < lj < ri or li < rj < ri) and (li - lj) * (ri - rj) > 0:
-    #             return False
-    # return True
     pairs = [(h, d) for d, h in enumerate(sequence, 1) if h >= 0]
     for i, (hi, di) in enumerate(pairs):
         for hj, dj in pairs[i + 1:]:
@@ -568,8 +331,7 @@ def tarjan(sequence) :
     stack, onstack = [], [False] * len(sequence)
 
     def connect(i, timestep):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/fn.py')
-        # print('connect')
+
         dfn[i] = low[i] = timestep[0]
         timestep[0] += 1
         stack.append(i)

@@ -25,110 +25,74 @@ class Semiring(object):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return x + y
 
     @classmethod
     def mul(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('mul')
         return x * y
 
     @classmethod
     def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         return x.sum(dim)
 
     @classmethod
     def prod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('prod')
         return x.prod(dim)
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return x.cumsum(dim)
 
     @classmethod
     def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumprod')
         return x.cumprod(dim)
 
     @classmethod
     def dot(cls, x: torch.Tensor, y: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('dot')
         return cls.sum(cls.mul(x, y), dim)
 
     @classmethod
     def times(cls, *x: Iterable[torch.Tensor]) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('times')
         return reduce(lambda i, j: cls.mul(i, j), x)
 
     @classmethod
     def zero_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('zero_')
         return x.fill_(cls.zero)
 
     @classmethod
     def one_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('one_')
         return x.fill_(cls.one)
 
     @classmethod
     def zero_mask(cls, x: torch.Tensor, mask: torch.BoolTensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('zero_mask')
         return x.masked_fill(mask, cls.zero)
 
     @classmethod
     def zero_mask_(cls, x: torch.Tensor, mask: torch.BoolTensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('zero_mask_')
         return x.masked_fill_(mask, cls.zero)
 
     @classmethod
     def one_mask(cls, x: torch.Tensor, mask: torch.BoolTensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('one_mask')
         return x.masked_fill(mask, cls.one)
 
     @classmethod
     def one_mask_(cls, x: torch.Tensor, mask: torch.BoolTensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('one_mask_')
         return x.masked_fill_(mask, cls.one)
 
     @classmethod
     def zeros_like(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('zeros_like')
         return x.new_full(x.shape, cls.zero)
 
     @classmethod
     def ones_like(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('ones_like')
         return x.new_full(x.shape, cls.one)
 
     @classmethod
     def convert(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('convert')
         return x
 
     @classmethod
     def unconvert(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('unconvert')
         return x
 
 
@@ -142,38 +106,26 @@ class LogSemiring(Semiring):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return x.logaddexp(y)
 
     @classmethod
     def mul(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('mul')
         return x + y
 
     @classmethod
     def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         return x.logsumexp(dim)
 
     @classmethod
     def prod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('prod')
         return x.sum(dim)
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return x.logcumsumexp(dim)
 
     @classmethod
     def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumprod')
         return x.cumsum(dim)
 
 
@@ -184,26 +136,18 @@ class MaxSemiring(LogSemiring):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return x.max(y)
 
     @classmethod
     def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         return x.max(dim)[0]
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return x.cummax(dim)
 
 
 def KMaxSemiring(k):
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-    # print('KMaxSemiring')
     r"""
     k-max semiring :math:`<\mathrm{kmax}, +, [-\infty, -\infty, \dots], [0, -\infty, \dots]>`.
     """
@@ -212,46 +156,32 @@ def KMaxSemiring(k):
 
         @classmethod
         def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-            # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-            # print('add')
             return x.unsqueeze(-1).max(y.unsqueeze(-2)).flatten(-2).topk(k, -1)[0]
 
         @classmethod
         def mul(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-            # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-            # print('mul')
             return (x.unsqueeze(-1) + y.unsqueeze(-2)).flatten(-2).topk(k, -1)[0]
 
         @classmethod
         def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-            # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-            # print('sum')
             return x.movedim(dim, -1).flatten(-2).topk(k, -1)[0]
 
         @classmethod
         def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-            # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-            # print('cumsum')
             return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.add(x, y))), dim)
 
         @classmethod
         def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-            # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-            # print('cumprod')
             return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.mul(x, y))), dim)
 
         @classmethod
         def one_(cls, x: torch.Tensor) -> torch.Tensor:
-            # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-            # print('one_')
             x[..., :1].fill_(cls.one)
             x[..., 1:].fill_(cls.zero)
             return x
 
         @classmethod
         def convert(cls, x: torch.Tensor) -> torch.Tensor:
-            # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-            # print('convert')
             return torch.cat((x.unsqueeze(-1), cls.zero_(x.new_empty(*x.shape, k - 1))), -1)
 
     return KMaxSemiring
@@ -266,44 +196,30 @@ class ExpectationSemiring(Semiring):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return x + y
 
     @classmethod
     def mul(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('mul')
         return torch.stack((x[..., 0] * y[..., 0], x[..., 0] * y[..., 1] + x[..., 1] * y[..., 0]), -1)
 
     @classmethod
     def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         return x.sum(dim)
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.add(x, y))), dim)
 
     @classmethod
     def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumprod')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.mul(x, y))), dim)
 
     @classmethod
     def zero_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('zero_')
         return x.fill_(cls.zero)
 
     @classmethod
     def one_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('one_')
         x[..., 0].fill_(cls.one)
         x[..., 1].fill_(cls.zero)
         return x
@@ -318,14 +234,10 @@ class EntropySemiring(LogSemiring):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return cls.sum(torch.stack((x, y)), 0)
 
     @classmethod
     def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         p = x[..., 0].logsumexp(dim)
         r = x[..., 0] - p.unsqueeze(dim)
         r = r.exp().mul((x[..., 1] - r)).sum(dim)
@@ -333,40 +245,28 @@ class EntropySemiring(LogSemiring):
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.add(x, y))), dim)
 
     @classmethod
     def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumprod')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.mul(x, y))), dim)
 
     @classmethod
     def zero_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('zero_')
         x[..., 0].fill_(cls.zero)
         x[..., 1].fill_(cls.one)
         return x
 
     @classmethod
     def one_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('one_')
         return x.fill_(cls.one)
 
     @classmethod
     def convert(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('convert')
         return torch.stack((x, cls.ones_like(x)), -1)
 
     @classmethod
     def unconvert(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('unconvert')
         return x[..., 1]
 
 
@@ -379,14 +279,10 @@ class CrossEntropySemiring(LogSemiring):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return cls.sum(torch.stack((x, y)), 0)
 
     @classmethod
     def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         p = x[..., :-1].logsumexp(dim)
         r = x[..., :-1] - p.unsqueeze(dim)
         r = r[..., 0].exp().mul((x[..., -1] - r[..., 1])).sum(dim)
@@ -394,40 +290,28 @@ class CrossEntropySemiring(LogSemiring):
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.add(x, y))), dim)
 
     @classmethod
     def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumprod')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.mul(x, y))), dim)
 
     @classmethod
     def zero_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('zero_')
         x[..., :-1].fill_(cls.zero)
         x[..., -1].fill_(cls.one)
         return x
 
     @classmethod
     def one_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('one_')
         return x.fill_(cls.one)
 
     @classmethod
     def convert(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('convert')
         return torch.cat((x, cls.one_(torch.empty_like(x[..., :1]))), -1)
 
     @classmethod
     def unconvert(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('unconvert')
         return x[..., -1]
 
 
@@ -440,14 +324,10 @@ class KLDivergenceSemiring(LogSemiring):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return cls.sum(torch.stack((x, y)), 0)
 
     @classmethod
     def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         p = x[..., :-1].logsumexp(dim)
         r = x[..., :-1] - p.unsqueeze(dim)
         r = r[..., 0].exp().mul((x[..., -1] - r[..., 1] + r[..., 0])).sum(dim)
@@ -455,40 +335,28 @@ class KLDivergenceSemiring(LogSemiring):
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.add(x, y))), dim)
 
     @classmethod
     def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumprod')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.mul(x, y))), dim)
 
     @classmethod
     def zero_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('zero_')
         x[..., :-1].fill_(cls.zero)
         x[..., -1].fill_(cls.one)
         return x
 
     @classmethod
     def one_(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('one_')
         return x.fill_(cls.one)
 
     @classmethod
     def convert(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('convert')
         return torch.cat((x, cls.one_(torch.empty_like(x[..., :1]))), -1)
 
     @classmethod
     def unconvert(cls, x: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('unconvert')
         return x[..., -1]
 
 
@@ -500,26 +368,18 @@ class SampledSemiring(LogSemiring):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return cls.sum(torch.stack((x, y)), 0)
 
     @classmethod
     def sum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         return sampled_logsumexp(x, dim)
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.add(x, y))), dim)
 
     @classmethod
     def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumprod')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.mul(x, y))), dim)
 
 
@@ -531,25 +391,17 @@ class SparsemaxSemiring(LogSemiring):
 
     @classmethod
     def add(cls, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('add')
         return cls.sum(torch.stack((x, y)), 0)
 
     @staticmethod
     def sum(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('sum')
         p = sparsemax(x, dim)
         return x.mul(p).sum(dim) - p.norm(p=2, dim=dim)
 
     @classmethod
     def cumsum(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumsum')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.add(x, y))), dim)
 
     @classmethod
     def cumprod(cls, x: torch.Tensor, dim: int = -1) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/semiring.py')
-        # print('cumprod')
         return torch.stack(list(itertools.accumulate(x.unbind(dim), lambda x, y: cls.mul(x, y))), dim)

@@ -16,43 +16,28 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from omegaconf import DictConfig, OmegaConf
-# from supar.utils.common import CACHE
-# from supar.utils.parallel import wait
-
 
 def ispunct(token: str) -> bool:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('ispunct')
     return all(unicodedata.category(char).startswith('P') for char in token)
 
 
 def isfullwidth(token: str) -> bool:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('isfullwidth')
     return all(unicodedata.east_asian_width(char) in ['W', 'F', 'A'] for char in token)
 
 
 def islatin(token: str) -> bool:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('islatin')
     return all('LATIN' in unicodedata.name(char) for char in token)
 
 
 def isdigit(token: str) -> bool:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('isdigit')
     return all('DIGIT' in unicodedata.name(char) for char in token)
 
 
 def tohalfwidth(token: str) -> str:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('tohalfwidth')
     return unicodedata.normalize('NFKC', token)
 
 
 def kmeans(x: List[int], k: int, max_it: int = 32) -> Tuple[List[float], List[List[int]]]:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('kmeans')
     r"""
     KMeans algorithm for clustering the sentences by length.
 
@@ -125,8 +110,6 @@ def kmeans(x: List[int], k: int, max_it: int = 32) -> Tuple[List[float], List[Li
 
 
 def stripe(x: torch.Tensor, n: int, w: int, offset: Tuple = (0, 0), horizontal: bool = True) -> torch.Tensor:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('stripe')
     r"""
     Returns a parallelogram stripe of the tensor.
 
@@ -168,8 +151,6 @@ def stripe(x: torch.Tensor, n: int, w: int, offset: Tuple = (0, 0), horizontal: 
 
 
 def diagonal_stripe(x: torch.Tensor, offset: int = 1) -> torch.Tensor:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('diagonal_stripe')
     r"""
     Returns a diagonal parallelogram stripe of the tensor.
 
@@ -206,8 +187,6 @@ def diagonal_stripe(x: torch.Tensor, offset: int = 1) -> torch.Tensor:
 
 
 def expanded_stripe(x: torch.Tensor, n: int, w: int, offset: Tuple = (0, 0)) -> torch.Tensor:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('expanded_stripe')
     r"""
     Returns an expanded parallelogram stripe of the tensor.
 
@@ -254,20 +233,11 @@ def expanded_stripe(x: torch.Tensor, n: int, w: int, offset: Tuple = (0, 0)) -> 
 
 
 def binarize(
-
     data: Union[List[str], Dict[str, Iterable]],
     fbin: str = None,
     merge: bool = False
 ) -> Tuple[str, torch.Tensor]:
     
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('binarize')
-
-    # print("binarize - Start")
-    # print("data:", data)
-    # print("fbin:", fbin)
-    # print("merge:", merge)
-
     start, meta = 0, defaultdict(list)
     # the binarized file is organized as:
     # `data`: pickled objects
@@ -291,7 +261,6 @@ def binarize(
         else:
             for key, val in data.items():
                 for i in val:
-                    # print("i:", i)
                     buf = i if isinstance(i, (bytes, bytearray)) else pickle.dumps(i)
                     f.write(buf)
                     meta[key].append((start, len(buf)))
@@ -305,7 +274,6 @@ def binarize(
         if not data:
             print("data is empty")
 
-    # print("binarize - End")
     return fbin, meta
 
 
@@ -316,10 +284,6 @@ def debinarize(
     unpickle: bool = False
 ) -> Union[Any, Iterable[Any]]:
     
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('debinarize')
-
-
     with open(fbin, 'rb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
         if meta or isinstance(pos_or_key, str):
             length = len(struct.pack('LL', 0, 0))
@@ -341,17 +305,12 @@ def debinarize(
 
 
 def pad(
-
     tensors: List[torch.Tensor],
     padding_value: int = 0,
     total_length: int = None,
     padding_side: str = 'right'
 ) -> torch.Tensor:
     
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('pad')
-
-
     size = [len(tensors)] + [max(tensor.size(i) for tensor in tensors)
                              for i in range(len(tensors[0].size()))]
     if total_length is not None:
@@ -361,89 +320,3 @@ def pad(
     for i, tensor in enumerate(tensors):
         out_tensor[i][[slice(-i, None) if padding_side == 'left' else slice(0, i) for i in tensor.size()]] = tensor
     return out_tensor
-
-'''
-@wait
-def download(url: str, path: Optional[str] = None, reload: bool = False, clean: bool = False) -> str:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('download')
-    # print('url', url)
-    # print('path', path)
-    filename = os.path.basename(urllib.parse.urlparse(url).path)
-    if path is None:
-        path = CACHE
-    os.makedirs(path, exist_ok=True)
-    path = os.path.join(path, filename)
-    if reload and os.path.exists(path):
-        os.remove(path)
-    if not os.path.exists(path):
-        sys.stderr.write(f"Downloading {url} to {path}\n")
-        try:
-            torch.hub.download_url_to_file(url, path, progress=True)
-        except (ValueError, urllib.error.URLError):
-            raise RuntimeError(f"File {url} unavailable. Please try other sources.")
-    return extract(path, reload, clean)
-# path: '/home/ke/.cache/supar/ptb.biaffine.dep.roberta.ini'
-# reload: False
-# clean: False
-
-# extract(path, reload, clean): '/home/ke/.cache/supar/ptb.biaffine.dep.roberta.ini'
-
-
-def extract(path: str, reload: bool = False, clean: bool = False) -> str:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('extract')
-    extracted = path
-    if zipfile.is_zipfile(path):
-        with zipfile.ZipFile(path) as f:
-            extracted = os.path.join(os.path.dirname(path), f.infolist()[0].filename)
-            if reload or not os.path.exists(extracted):
-                f.extractall(os.path.dirname(path))
-    elif tarfile.is_tarfile(path):
-        with tarfile.open(path) as f:
-            extracted = os.path.join(os.path.dirname(path), f.getnames()[0])
-            if reload or not os.path.exists(extracted):
-                f.extractall(os.path.dirname(path))
-    elif path.endswith('.gz'):
-        extracted = path[:-3]
-        with gzip.open(path) as fgz:
-            with open(extracted, 'wb') as f:
-                shutil.copyfileobj(fgz, f)
-    if clean:
-        os.remove(path)
-    return extracted
-
-
-def resolve_config(args: Union[Dict, DictConfig]) -> DictConfig:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('resolve_config')
-    OmegaConf.register_new_resolver("eval", eval)
-    return DictConfig(OmegaConf.to_container(args, resolve=True))
-
-
-def collect_args(args: Union[Dict, DictConfig]) -> DictConfig:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('collect_args')
-    for key in ('self', 'cls', '__class__'):
-        args.pop(key, None)
-    args.update(args.pop('kwargs', dict()))
-    return DictConfig(args)
-
-
-def get_rng_state() -> Dict[str, torch.Tensor]:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('get_rng_state')
-    state = {'rng_state': torch.get_rng_state()}
-    if torch.cuda.is_available():
-        state['cuda_rng_state'] = torch.cuda.get_rng_state()
-    return state
-
-
-def set_rng_state(state: Dict) -> None:
-    # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/utils/fn.py')
-    # print('set_rng_state')
-    torch.set_rng_state(state['rng_state'])
-    if torch.cuda.is_available():
-        torch.cuda.set_rng_state(state['cuda_rng_state'])
-        
-'''

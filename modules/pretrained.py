@@ -222,46 +222,6 @@ class TransformerEmbedding(nn.Module):
             raise RuntimeError(f'Unsupported pooling method "{self.pooling}"!')
         return self.projection(x)
 
-    # def forward(self, tokens: torch.Tensor) -> torch.Tensor:
-    #     """
-    #     Args:
-    #         tokens (~torch.Tensor): ``[batch_size, seq_len]``.
-
-    #     Returns:
-    #         ~torch.Tensor:
-    #             Contextualized token embeddings of shape ``[batch_size, seq_len, n_out]``.
-    #     """
-
-    #     # Create an attention mask based on where the token is not a padding index
-    #     attention_mask = tokens.ne(self.pad_index)
-
-    #     # Process tokens through the model
-    #     outputs = self.model(tokens, attention_mask=attention_mask.float())
-
-    #     # Extract the last hidden states from the outputs
-    #     hidden_states = outputs.last_hidden_state # [batch_size, seq_len, hidden_size]
-
-    #     # Apply the scalar mix to combine the hidden layers if specified
-    #     if self.n_layers > 0:
-    #         x = self.scalar_mix(hidden_states[-self.n_layers:])
-    #     else:
-    #         x = hidden_states  # use the output from the last layer if no layers are specified for mixing
-
-    #     # Apply pooling if specified
-    #     if self.pooling == 'first':
-    #         x = x[:, 0, :]  # take the first token of each sequence
-    #     elif self.pooling == 'last':
-    #         x = x[:, -1, :]  # take the last token (before padding)
-    #     elif self.pooling == 'mean':
-    #         # Compute a mean only over non-padding tokens
-    #         x = (x * attention_mask.unsqueeze(-1)).sum(1) / attention_mask.sum(1, keepdim=True)
-
-    #     # Apply the projection layer if the output size is different from the hidden size
-    #     x = self.projection(x)
-
-    #     return x
-
-
 class ELMoEmbedding(nn.Module):
     r"""
     Contextual word embeddings using word-level bidirectional LM :cite:`peters-etal-2018-deep`.

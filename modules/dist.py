@@ -25,25 +25,17 @@ class StructuredDistribution(Distribution):
     """
 
     def __init__(self, scores: torch.Tensor, **kwargs) -> StructuredDistribution:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('__init__')
         self.scores = scores.requires_grad_() if isinstance(scores, torch.Tensor) else [s.requires_grad_() for s in scores]
         self.kwargs = kwargs
 
     def __repr__(self):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('__repr__')
         return f"{self.__class__.__name__}()"
 
     def __add__(self, other: 'StructuredDistribution') -> StructuredDistribution:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('__add__')
         return self.__class__(torch.stack((self.scores, other.scores), -1), lens=self.lens)
 
     @lazy_property
     def log_partition(self):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('log_partition')
         r"""
         Computes the log partition function of the distribution :math:`p(y)`.
         """
@@ -52,8 +44,6 @@ class StructuredDistribution(Distribution):
 
     @lazy_property
     def marginals(self):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('marginals')
         r"""
         Computes marginal probabilities of the distribution :math:`p(y)`.
         """
@@ -62,8 +52,6 @@ class StructuredDistribution(Distribution):
 
     @lazy_property
     def max(self):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('max')
         r"""
         Computes the max score of the distribution :math:`p(y)`.
         """
@@ -72,8 +60,6 @@ class StructuredDistribution(Distribution):
 
     @lazy_property
     def argmax(self):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('argmax')
         r"""
         Computes :math:`\arg\max_y p(y)` of the distribution :math:`p(y)`.
         """
@@ -82,13 +68,9 @@ class StructuredDistribution(Distribution):
 
     @lazy_property
     def mode(self):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('mode')
         return self.argmax
 
     def kmax(self, k: int) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('kmax')
         r"""
         Computes the k-max of the distribution :math:`p(y)`.
         """
@@ -96,16 +78,12 @@ class StructuredDistribution(Distribution):
         return self.forward(KMaxSemiring(k))
 
     def topk(self, k: int) -> Union[torch.Tensor, Iterable]:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('topk')
         r"""
         Computes the k-argmax of the distribution :math:`p(y)`.
         """
         raise NotImplementedError
 
     def sample(self):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('sample')
         r"""
         Obtains a structured sample from the distribution :math:`y \sim p(y)`.
         TODO: multi-sampling.
@@ -115,8 +93,6 @@ class StructuredDistribution(Distribution):
 
     @lazy_property
     def entropy(self):
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('entropy')
         r"""
         Computes entropy :math:`H[p]` of the distribution :math:`p(y)`.
         """
@@ -124,8 +100,6 @@ class StructuredDistribution(Distribution):
         return self.forward(EntropySemiring)
 
     def cross_entropy(self, other: 'StructuredDistribution') -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('cross_entropy')
         r"""
         Computes cross-entropy :math:`H[p,q]` of self and another distribution.
 
@@ -136,8 +110,6 @@ class StructuredDistribution(Distribution):
         return (self + other).forward(CrossEntropySemiring)
 
     def kl(self, other: 'StructuredDistribution') -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('kl')
         r"""
         Computes KL-divergence :math:`KL[p \parallel q]=H[p,q]-H[p]` of self and another distribution.
 
@@ -148,8 +120,6 @@ class StructuredDistribution(Distribution):
         return (self + other).forward(KLDivergenceSemiring)
 
     def log_prob(self, value: torch.LongTensor, *args, **kwargs) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('log_prob')
         """
         Computes log probability over values :math:`p(y)`.
         """
@@ -157,18 +127,12 @@ class StructuredDistribution(Distribution):
         return self.score(value, *args, **kwargs) - self.log_partition
 
     def score(self, value: torch.LongTensor, *args, **kwargs) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('score')
         raise NotImplementedError
 
     @torch.enable_grad()
     def forward(self, semiring: Semiring) -> torch.Tensor:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('forward')
         raise NotImplementedError
 
     def backward(self, log_partition: torch.Tensor) -> Union[torch.Tensor, Iterable[torch.Tensor]]:
-        # print('/home/ke/Documents/projects/RNA/parser/my_rna_deep/supar/structs/dist.py')
-        # print('backward')
         grads = autograd.grad(log_partition, self.scores, create_graph=True)
         return grads[0] if isinstance(self.scores, torch.Tensor) else grads

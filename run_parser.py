@@ -38,27 +38,17 @@ class RNAbiaffine():
 
         train_dataset = Biaffine_Dataset(
             self.args,
-            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/TR0/", session=self.args.train_session),
-            
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/RNAstrAlign/train1/", session=self.args.train_session),
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TrainSetA/", session=self.args.train_session),
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/test/", session=self.args.train_session),
+            examples=read_examples(self.args, file_path=self.args.train_path, session=self.args.train_session),
             data_type="train"
         )
         eval_dataset = Biaffine_Dataset(
             self.args,
-            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/TS0/", session=self.args.eval_session),
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/RNAstrAlign/val1/", session=self.args.eval_session),
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TestSetB/", session=self.args.eval_session),
+            examples=read_examples(self.args, file_path=self.args.eval_path, session=self.args.eval_session),
             data_type="dev"
         )
         test_dataset = Biaffine_Dataset(
             self.args,
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/VL0/", session=self.args.eval_session),
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/ArchiveII/", session=self.args.test_session),
-            examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TestSetB/", session=self.args.test_session),
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/check/", session=self.args.test_session),
-            # examples=read_examples(self.args, file_path="/home/ke/Documents/RNA_parser/RNA_parser/data/RNAstrAlign/test1/", session=self.args.test_session),
+            examples=read_examples(self.args, file_path=self.args.test_path, session=self.args.test_session),
             data_type="test"
         )
 
@@ -168,62 +158,6 @@ class RNAbiaffine():
                     print(f"Early stop in {epoch} epoch!")
                     break
 
-    # def predict(self):
-    #     args = self.args
-    #     path = self.args.path
-    #     self.model.load_state_dict(torch.load(path, map_location='cpu'))
-    #     self.model.to(self.args.device)
-
-    #     logger.info("Loading the data")
-    #     dataset = Biaffine_Dataset(self.args, examples=read_examples(self.args, file_path=self.args.predict, session=self.args.predict_session), data_type="test")
-    #     pred_iter = DataLoader(dataset, shuffle=False, batch_size=self.args.per_gpu_eval_batch_size, collate_fn=dataset._create_collate_fn(), num_workers=4)
-
-    #     relation_dic = self.args.relation_dic
-
-    #     logger.info("Making predictions on the data")
-    #     start = datetime.now()
-    #     self.model.eval()
-    #     seq_all, gold, predict = [], [], []
-
-    #     for batch in pred_iter:
-    #         batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
-
-    #         seq, batch_token_ids, mask, arcs, rels = batch
-    #         mask[:, 0] = 0
-    #         s_arc, s_rel = self.model(batch_token_ids=batch_token_ids)
-
-    #         s_time = time.time()
-    #         beta = args.beta
-    #         seed = -1
-    #         pred_contacts = self.model.decode(s_arc, s_rel, seed, beta, mask, self.args.tree, self.args.proj).cpu()
-    #         interval_t = time.time() - s_time
-
-    #         contacts = self.create_contacts_from_arcs_and_rels(arcs, rels)
-            
-    #         pred_result = list(map(lambda i: evaluate_result(pred_contacts()[i],
-    #                                                                     contacts()[i]), range(contacts.shape[0])))
-    #         gold_structure = self.contacts_to_dot_bracket(contacts)
-    #         pred_structure = self.contacts_to_dot_bracket(pred_contacts)
-
-    #         seq_all.extend(seq)
-    #         gold.extend(gold_structure)
-    #         predict.extend(pred_structure)
-
-
-
-    #     p, r, f1 = zip(*pred_result)
-    #     print('predict file F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n'.format(np.average(f1), np.average(p), np.average(r), np.average(interval_t)))
-        
-    #     predict_path = self.args.predict_save
-    #     with open(predict_path + '/seq.txt', 'w') as file:
-    #         for s in seq:
-    #             file.write(s + '\n')
-    #     with open(predict_path + '/predict.txt', 'w') as file:
-    #         for structure in predict:
-    #             file.write(structure + '\n')
-    #     with open(predict_path + '/gold.txt', 'w') as file:
-    #         for structure in gold:
-    #             file.write(structure + '\n')
 
     def predict(self):
         args = self.args
@@ -259,7 +193,6 @@ class RNAbiaffine():
                 beta = args.beta
                 seed = -1
                 pred_contacts = self.model.decode(s_arc, s_rel, seed, beta, mask, args.tree, args.proj)
-
                 contact_map = self.model.contact_map(s_arc, s_rel, mask, is_softmax = False)
                 contact_map_softmax = self.model.contact_map(s_arc, s_rel, mask, is_softmax = True)
 
@@ -329,13 +262,7 @@ class RNAbiaffine():
         batch_size, seq_len, _ = contacts.shape
         dot_bracket_list = []
 
-        for batch in range(batch_size):
-            # ctList = []
-            # for i in range(seq_len):
-            #     for j in range(seq_len):
-            #         if contacts[batch, i, j]:
-            #             ctList.append((i, j))  # +1 because ct2dot uses 1-based indexing
-            
+        for batch in range(batch_size):            
             # 找到每行中1的位置
             row_indices = np.where(contacts[batch] == 1)[0]
             # 找到每列中1的位置
@@ -343,156 +270,13 @@ class RNAbiaffine():
             
             # 创建配对列表
             ctList = list(zip(row_indices, col_indices))
-            # print(ctList)
 
             filtered_ctList = [(i, j) for i, j in ctList if i < seq_len - 2 and j < seq_len - 2]
-            # print(filtered_ctList)
             
             dot_bracket = ct2dot(filtered_ctList, seq_len-2)
             dot_bracket_list.append(dot_bracket)
 
         return dot_bracket_list
-
-        '''
-        for step, batch in enumerate(pred_iter):
-
-            batch = (batch[0],) + tuple(t.to(self.args.device) for t in batch[1:])
-            batch_seq, batch_token_ids, mask, batch_arcs, batch_rels = batch
-            lens = [(t.sum(dim=0) - 2).tolist() for t in mask]
-            mask = torch.logical_and(batch_token_ids.ne(1), batch_token_ids.ne(2))
-            mask[:, 0] = 0
-
-            s_arc, s_rel = self.model(batch_token_ids=batch_token_ids)
-            batch_arcs = [i.tolist() for i in batch_arcs[mask].split(lens)]
-            batch_rels = [i.tolist() for i in batch_rels[mask].split(lens)]
-
-            seq.extend(batch_seq)
-            arcs.extend(batch_arcs)
-            rels.extend(batch_rels)
-
-            gold_all_structures, gold_energies = self.calculate_stem_energies(batch_arcs, batch_rels, relation_dic, batch_seq)
-            gold.extend(gold_all_structures)
-
-            beta = args.beta
-            best_arc, best_rel = None, None
-
-            for seed in range(args.decode_round):
-                if args.decode_round == 1:
-                    seed = -1
-
-                batch_arc_preds, batch_rel_preds = self.model.decode(s_arc, s_rel, seed, beta, mask, tree=True, proj=True)
-                batch_arc_preds = [i.tolist() for i in batch_arc_preds[mask].split(lens)]
-                batch_rel_preds = [i.tolist() for i in batch_rel_preds[mask].split(lens)]
-
-                all_structures, energies = self.calculate_stem_energies(batch_arc_preds, batch_rel_preds, relation_dic, batch_seq)
-
-                if seed == 0 or seed == -1:
-                    best_arc = batch_arc_preds
-                    best_rel = batch_rel_preds
-                    best_energies = energies
-                    best_structures = all_structures
-                else:
-                    for i in range(len(energies)):
-                        if energies[i] < best_energies[i]:
-                            best_energies[i] = energies[i]
-                            best_structures[i] = all_structures[i]
-                            best_arc[i] = batch_arc_preds[i]
-                            best_rel[i] = batch_rel_preds[i]
-
-            predict.extend(best_structures)
-            arc_preds.extend(best_arc)
-            rel_preds.extend(best_rel)
-
-        predict_path = self.args.predict_save
-        self.write_results(seq, predict, gold, arcs, rels, arc_preds, rel_preds, relation_dic, predict_path)
-
-    def write_results(self, seq, predict, gold, arcs, rels, arc_preds, rel_preds, relation_dic, predict_path):
-        with open(predict_path + '/seq.txt', 'w') as file:
-            for s in seq:
-                file.write(s + '\n')
-        with open(predict_path + '/predict.txt', 'w') as file:
-            for structure in predict:
-                file.write(structure + '\n')
-        with open(predict_path + '/gold.txt', 'w') as file:
-            for structure in gold:
-                file.write(structure + '\n')
-
-        self.process_and_write_relations(arcs, rels, relation_dic, predict_path, type='gold')
-        self.process_and_write_relations(arc_preds, rel_preds, relation_dic, predict_path, type='predict')
-
-    def process_and_write_relations(self, arcs, rels, relation_dic, predict_path, type):
-        file_names = {name: f"{predict_path}/{name}_{type}.txt" for name in relation_dic}
-        files_content = {name: [] for name in file_names}
-
-        for arc_line, rel_line in zip(arcs, rels):
-            line_lengths = len(arc_line)
-            line_representation = {name: [] for name in file_names}
-            temp = ['.' for _ in range(line_lengths)]
-
-            for i, (arc, rel) in enumerate(zip(arc_line, rel_line)):
-                for rel_name, rel_val in relation_dic.items():
-                    if rel == rel_val:
-                        target_idx = arc - 1
-                        if rel_name == 'stem':
-                            if i < target_idx:
-                                temp[i] = '('
-                                temp[target_idx] = ')'
-                            else:
-                                temp[i] = ')'
-                                temp[target_idx] = '('
-                        line_representation[rel_name].append(f"[{i + 1},{target_idx + 1}]")
-            for name in file_names:
-                files_content[name].append(''.join(line_representation[name]))
-
-        for name, content in files_content.items():
-            with open(file_names[name], 'w') as file:
-                for line in content:
-                    file.write(line + '\n')
-
-    def calculate_stem_energies(self, arcs, rels, relation_dic, sequences):
-        all_structures = []
-        energies = []
-        for arc_line, rel_line, sequence in zip(arcs, rels, sequences):
-            line_lengths = len(arc_line)
-            temp = ['.' for _ in range(line_lengths)]
-            for i, (arc, rel) in enumerate(zip(arc_line, rel_line)):
-                for rel_name, rel_val in relation_dic.items():
-                    if rel == rel_val and rel_name == 'stem':
-                        target_idx = arc - 1
-                        if target_idx < 0 or target_idx >= len(temp) or i >= len(temp):
-                            continue
-                        if i < target_idx:
-                            temp[i] = '('
-                            temp[target_idx] = ')'
-                        else:
-                            temp[i] = ')'
-                            temp[target_idx] = '('
-
-            structure = ''.join(temp)
-            all_structures.append(structure)
-            if not self.is_balanced_and_nested_correctly(structure):
-                energy = 1e7
-            else:
-                fc = RNA.fold_compound(sequence)
-                try:
-                    energy = fc.eval_structure(structure)
-                except Exception as e:
-                    print(f"Error processing structure: {structure}, setting energy to infinity.")
-                    energy = 1e7
-            energies.append(energy)
-        return all_structures, energies
-
-    def is_balanced_and_nested_correctly(self, structure):
-        balance = 0
-        for char in structure:
-            if char == '(':
-                balance += 1
-            elif char == ')':
-                balance -= 1
-            if balance < 0:
-                return False
-        return balance == 0
-    '''
 
     def train_step(self, batch):
         seq, batch_token_ids, mask, arcs, rels = batch
@@ -577,47 +361,57 @@ class RNAbiaffine():
             warmup_steps=getattr(self.args, 'warmup_steps', int(self.args.steps * getattr(self.args, 'warmup', 0))),
             steps=self.args.steps
         )
-
 def get_argparse():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--seed", type=int, default=66, help="random seed for initialization")
-    parser.add_argument("--embedding", type=str, default='roberta-base', help="one-hot, RNA-fm,roberta-base")
-    parser.add_argument("--finetune", action='store_true', help="finetune embedding")
-
-    parser.add_argument("--train_session", default="TR0", type=str, help="TR0, TR1")
-    parser.add_argument("--eval_session", default="TS0", type=str, help="VL0")
-    parser.add_argument("--test_session", default="VB", type=str, help="TS0, bpnew")
-
-    parser.add_argument("--cache_data", default="./data/bp_", type=str, help="data pkl path")
-    parser.add_argument("--is_pse", action='store_true', help="include pseudoknot or not")    
-    parser.add_argument("--per_gpu_train_batch_size", default=3, type=int, help="训练Batch size的大小")
-    parser.add_argument("--per_gpu_eval_batch_size", default=3, type=int, help="验证Batch size的大小")
-    parser.add_argument("--num_train_epochs", default=100, type=float, help="训练轮数")
-    parser.add_argument("--early_stop", default=8, type=int, help="早停")
-
-    parser.add_argument("--lr", default=5.0e-05, type=float, help="训练轮数")
-    parser.add_argument("--lr_rate", default=20, type=float, help="学习率比例")
-
-    parser.add_argument("--tree", action='store_true', help="tree")
-    parser.add_argument("--proj", action='store_true', help="proj")
-
-    parser.add_argument("--weight_decay", default=0.01, type=float, help="Weight decay if we apply some.")
-
-    parser.add_argument("--output_dir", default="./output", type=str, help="保存模型的路径")
-
-    parser.add_argument("--mode", default='train', type=str, help="train or predict")
-    parser.add_argument("--loss", default='cross_entropy', type=str, help="cross_entropy or focal_loss")
-
-    # when predict
+    parser = argparse.ArgumentParser(description="RNA Secondary Structure Prediction using Deepended Biaffine Model")
     
-    parser.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/bp_/", type=str, help="predict data file path")
-    # parser.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/Str_", type=str, help="predict data file path")
-    parser.add_argument("--predict_session", default="VLA", type=str, help="predict session")
-    parser.add_argument("--decode_round", default=1, type=int, help="how many times to make the prediction")
-    parser.add_argument("--beta", default=0.0, type=float, help="beta stem map to added to arc")
-    parser.add_argument("--predict_save", default="/home/ke/Documents/RNA_parser/RNA_parser/test/test/", type=str, help="result save")
-    parser.add_argument("--path", default="/home/ke/Documents/RNA_parser/RNA_parser/TABoutput/Roberta_experiment/TRA/model.pt", type=str, help="model path")
+    # General settings
+    general_group = parser.add_argument_group('General Settings')
+    general_group.add_argument("--seed", type=int, default=66, help="Random seed for initialization")
+    general_group.add_argument("--mode", default='train', type=str, choices=['train', 'predict'], help="Running mode: train or predict")
+    general_group.add_argument("--output_dir", default="./output", type=str, help="Directory to save model and results")
+    general_group.add_argument("--cache_data", default="./data/bp_", type=str, help="Path to cache processed data")
+    
+    # Model settings
+    model_group = parser.add_argument_group('Model Settings')
+    model_group.add_argument("--embedding", type=str, default='roberta-base', choices=['one-hot', 'RNA-fm', 'roberta-base'], 
+                             help="Embedding type to use")
+    model_group.add_argument("--finetune", action='store_true', help="Whether to finetune the embedding model")
+    model_group.add_argument("--tree", action='store_true', help="Use tree constraints for decoding")
+    model_group.add_argument("--proj", action='store_true', help="Use projectivity constraints for decoding")
+    model_group.add_argument("--loss", default='cross_entropy', type=str, choices=['cross_entropy', 'focal_loss'], 
+                             help="Loss function to use")
+    model_group.add_argument("--is_pse", action='store_true', help="Include pseudoknot or not")
+    
+    # Training settings
+    train_group = parser.add_argument_group('Training Settings')
+    train_group.add_argument("--train_path", default="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/TR0/", 
+                             type=str, help="Path to training data")
+    train_group.add_argument("--eval_path", default="/home/ke/Documents/RNA/mxfold2-data/data/bpRNA_dataset-canonicals/TS0/", 
+                             type=str, help="Path to validation data")
+    train_group.add_argument("--test_path", default="/home/ke/Documents/RNA_parser/RNA_parser/data/TAB/TestSetB/", 
+                             type=str, help="Path to test data")
+    train_group.add_argument("--train_session", default="TR0", type=str, help="Training session identifier")
+    train_group.add_argument("--eval_session", default="TS0", type=str, help="Validation session identifier")
+    train_group.add_argument("--test_session", default="VB", type=str, help="Test session identifier")
+    train_group.add_argument("--per_gpu_train_batch_size", default=3, type=int, help="Training batch size per GPU")
+    train_group.add_argument("--per_gpu_eval_batch_size", default=3, type=int, help="Evaluation batch size per GPU")
+    train_group.add_argument("--num_train_epochs", default=100, type=float, help="Number of training epochs")
+    train_group.add_argument("--early_stop", default=8, type=int, help="Patience for early stopping")
+    train_group.add_argument("--lr", default=5.0e-05, type=float, help="Learning rate")
+    train_group.add_argument("--lr_rate", default=20, type=float, help="Learning rate ratio for non-encoder parameters")
+    train_group.add_argument("--weight_decay", default=0.01, type=float, help="Weight decay coefficient")
+    
+    # Prediction settings
+    pred_group = parser.add_argument_group('Prediction Settings')
+    pred_group.add_argument("--predict", default="/home/ke/Documents/RNA_parser/RNA_parser/data/bp_/", 
+                           type=str, help="Path to data for prediction")
+    pred_group.add_argument("--predict_session", default="VLA", type=str, help="Prediction session identifier")
+    pred_group.add_argument("--predict_save", default="/home/ke/Documents/RNA_parser/RNA_parser/test/test/", 
+                           type=str, help="Directory to save prediction results")
+    pred_group.add_argument("--path", default="/home/ke/Documents/RNA_parser/RNA_parser/TABoutput/Roberta_experiment/TRA/model.pt", 
+                           type=str, help="Path to trained model for prediction")
+    pred_group.add_argument("--decode_round", default=1, type=int, help="How many times to make the prediction")
+    pred_group.add_argument("--beta", default=0.0, type=float, help="Beta stem map coefficient to add to arc scores")
 
     return parser
 
